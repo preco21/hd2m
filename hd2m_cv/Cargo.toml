@@ -1,0 +1,13 @@
+[package]
+name = "hd2m_cv"
+description = "hd2m: Some computer-vision related tools"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+readme = "README.md"
+edition = "2021"
+publish = false
+
+[dependencies]
+opencv = "0.88.8"
