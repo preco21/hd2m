@@ -147,21 +147,26 @@ fn main() -> anyhow::Result<()> {
         } else {
             0
         };
-        println!("El: {:?} {:?} {:?}", el, previous_bar, next_bar);
         if el >= previous_bar && el > next_bar {
             peaks.push(i);
         }
     }
 
     println!("Elapsed: {:?}", now.elapsed());
+    println!("Res: {:?}", a);
     println!("Peaks: {:?}", peaks);
+
+    for el in peaks {
+        let row = a.row(el);
+        let compacted = row.iter().filter(|&&x| x != Dir::None).collect::<Vec<_>>();
+        println!("Commands: {:?}", compacted);
+    }
 
     // for window in a.axis_windows(Axis(0), 3) {
     //     println!("Window: {:?}", window);
     // }
 
     // println!("Source: {:?}", arr);
-    println!("Res: {:?}", a);
 
     // for row in arr.axis_iter(Axis(0)) {
     //     println!("Row: {:?}", row);
