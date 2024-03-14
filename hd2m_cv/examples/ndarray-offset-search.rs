@@ -50,6 +50,7 @@ fn main() -> anyhow::Result<()> {
 
     println!("Source: {:?}", arr);
 
+    // Imagine this as commands to send to the game
     #[derive(Debug, Clone, Copy)]
     enum Dir {
         None,
