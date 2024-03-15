@@ -19,7 +19,7 @@ pub fn find_direction_commands(
     left: &nd::Array2<f32>,
     threshold: Option<f32>,
 ) -> anyhow::Result<Vec<Vec<Direction>>> {
-    let threshold = threshold.unwrap_or(0.0);
+    let threshold = threshold.unwrap_or(1.0);
     let directions = raw_mats_to_direction_buffer(up, right, down, left, threshold)?;
     let commands = extract_direction_commands(&directions)?;
     Ok(commands)
@@ -192,10 +192,11 @@ mod tests {
         assert_eq!(
             buf,
             vec![
-                vec![Direction::Up, Direction::Right],
-                vec![Direction::Right, Direction::Down, Direction::Left],
-                vec![Direction::Down, Direction::Right],
-                vec![Direction::Right, Direction::Up]
+                vec![Direction::Up, Direction::Left],
+                vec![Direction::Up, Direction::Right, Direction::Right],
+                vec![Direction::Up, Direction::Right, Direction::Down],
+                vec![Direction::Up],
+                vec![Direction::Left],
             ]
         );
 
