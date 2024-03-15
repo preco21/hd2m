@@ -14,3 +14,4 @@ anyhow = "1.0.81"
 half = "2.4.0"
 ndarray = { version = "0.15.6", features = ["rayon"] }
 opencv = "0.88.8"
+strum = { version = "0.26.2", features = ["derive"] }

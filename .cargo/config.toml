@@ -1,7 +1,7 @@
 [env]
-OPENCV_LINK_LIBS = "opencv_core4,opencv_imgcodecs4,opencv_imgproc4,opencv_bioinspired4,opencv_dnn4,opencv_stitching4,zlib"
-OPENCV_INCLUDE_PATHS = "C:\\Users\\preco\\vcpkg\\installed\\x64-windows\\include"
-OPENCV_LINK_PATHS = "C:\\Users\\preco\\vcpkg\\installed\\x64-windows\\lib"
+OPENCV_LINK_LIBS = "opencv_core4,opencv_videoio481,opencv_imgcodecs4,opencv_imgproc4,zlib"
+OPENCV_INCLUDE_PATHS = "C:\\Users\\preco\\vcpkg\\installed\\x64-windows-static\\include"
+OPENCV_LINK_PATHS = "C:\\Users\\preco\\vcpkg\\installed\\x64-windows-static\\lib"
 OPENCV_MSVC_CRT = "static"
 
 [target.x86_64-pc-windows-msvc]
