@@ -1,0 +1,14 @@
+[package]
+name = "hd2m_gui"
+description = "hd2m: A GUI for the HD2M project"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+readme = "README.md"
+edition = "2021"
+
+[dependencies]
+hd2m_utils = { version = "0.1.0", path = "../hd2m_utils" }
+iced = "0.12.1"
+tokio = "1.36.0"
