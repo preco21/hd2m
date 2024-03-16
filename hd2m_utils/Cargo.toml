@@ -1,6 +1,6 @@
 [package]
-name = "hd2m_cv"
-description = "hd2m: Some computer-vision related tools"
+name = "hd2m_utils"
+description = "hd2m: Some computer-vision related utilities"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true

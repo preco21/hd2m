@@ -130,7 +130,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hd2m_cv"
+name = "hd2m_utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",

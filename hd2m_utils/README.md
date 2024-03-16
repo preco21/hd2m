@@ -1,3 +1,3 @@
-# hd2m_cv
+# hd2m_utils
 
 > Some computer-vision related tools
