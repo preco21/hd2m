@@ -1,6 +1,4 @@
-use ndarray::parallel::prelude::*;
 use ndarray::s;
-use ndarray::Array;
 use ndarray::Array2;
 use ndarray::Axis;
 

@@ -18,10 +18,12 @@ pub fn find_direction_commands(
     down: &nd::Array2<f32>,
     left: &nd::Array2<f32>,
     threshold: Option<f32>,
+    search_chunk_size: Option<usize>,
 ) -> anyhow::Result<Vec<Vec<Direction>>> {
     let threshold = threshold.unwrap_or(1.0);
+    let search_chunk_size = search_chunk_size.unwrap_or(3);
     let directions = raw_mats_to_direction_buffer(up, right, down, left, threshold)?;
-    let commands = extract_direction_commands(&directions)?;
+    let commands = collect_direction_commands(&directions, search_chunk_size)?;
     Ok(commands)
 }
 
@@ -60,20 +62,58 @@ pub fn raw_mats_to_direction_buffer(
     Ok(buf)
 }
 
-pub fn extract_direction_commands(
+pub fn collect_direction_commands(
     buf: &nd::Array2<Direction>,
+    search_chunk_size: usize,
 ) -> anyhow::Result<Vec<Vec<Direction>>> {
-    let mut histogram: Vec<usize> = Vec::with_capacity(buf.nrows());
-    buf.outer_iter()
-        .into_par_iter()
+    // Iterate over the windowed columns and collect the non-None directions.
+    let chunks: Vec<Vec<Direction>> = buf
+        .axis_windows(nd::Axis(0), search_chunk_size)
+        .into_iter()
         .map(|rows| {
-            rows.fold(
-                0,
-                |acc, &dir| if dir != Direction::None { acc + 1 } else { acc },
-            )
+            /*
+             * Here we have a chunk of the matrix, and we need to find the first non-None value in each column.
+             *
+             * Imagine we have this matrix for one of the windows:
+             * ```
+             * [0 0 0 0 0]
+             * [1 0 1 0 0]
+             * [0 1 1 1 0]
+             * [0 1 1 0 0]
+             * ```
+             *
+             * This will be iterated as:
+             * ```
+             * [0 1 0 0]
+             * [0 0 1 1]
+             * [0 1 1 1]
+             * [0 0 1 0]
+             * [0 0 0 0]
+             * ```
+             *
+             * Notice each column is now a row, and we can find the first non-None value in each row.
+             * In which you can think of a transposed version of the original matrix.
+             *
+             * Also, since we are running very large number of iterations, we need to parallelize this.
+             */
+            rows.axis_iter(nd::Axis(1))
+                .into_par_iter()
+                .map(|col| {
+                    col.into_par_iter()
+                        .find_first(|&&el| el != Direction::None)
+                        .copied()
+                        .unwrap_or(Direction::None)
+                })
+                .filter(|&dir| dir != Direction::None)
+                .collect()
         })
-        .collect_into_vec(&mut histogram);
+        .collect();
 
+    let histogram: Vec<usize> = chunks
+        .clone()
+        .into_par_iter()
+        .map(|rows| rows.len())
+        .collect();
     let mut peaks: Vec<usize> = Vec::new();
     for (i, &el) in histogram.iter().enumerate() {
         let previous_bar = if i > 0 { histogram[i - 1] } else { 0 };
@@ -87,15 +127,10 @@ pub fn extract_direction_commands(
         }
     }
 
-    let commands = peaks
+    let commands: Vec<Vec<Direction>> = peaks
         .iter()
-        .map(|&i| {
-            buf.row(i)
-                .iter()
-                .filter(|&&x| x != Direction::None)
-                .copied()
-                .collect()
-        })
+        .filter_map(|&i| chunks.get(i))
+        .cloned()
         .collect();
 
     Ok(commands)
@@ -107,6 +142,7 @@ mod tests {
 
     #[test]
     fn test_find_direction_commands() -> anyhow::Result<()> {
+        let now = std::time::Instant::now();
         let arr = nd::Array2::<f32>::from_shape_vec(
             (15, 9),
             vec![
@@ -188,17 +224,29 @@ mod tests {
             ],
         )?;
 
-        let buf = find_direction_commands(&arr, &arr2, &arr3, &arr4, None)?;
+        let buf = find_direction_commands(&arr, &arr2, &arr3, &arr4, None, None)?;
         assert_eq!(
             buf,
             vec![
-                vec![Direction::Up, Direction::Left],
-                vec![Direction::Up, Direction::Right, Direction::Right],
-                vec![Direction::Up, Direction::Right, Direction::Down],
-                vec![Direction::Up],
-                vec![Direction::Left],
+                vec![
+                    Direction::Up,
+                    Direction::Right,
+                    Direction::Right,
+                    Direction::Right
+                ],
+                vec![
+                    Direction::Right,
+                    Direction::Up,
+                    Direction::Up,
+                    Direction::Up,
+                    Direction::Right,
+                    Direction::Down
+                ],
+                vec![Direction::Left, Direction::Up]
             ]
         );
+
+        println!("Elapsed: {:?}", now.elapsed());
 
         Ok(())
     }
