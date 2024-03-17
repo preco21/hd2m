@@ -1182,7 +1182,7 @@ dependencies = [
 name = "hd2m_gui"
 version = "0.1.0"
 dependencies = [
- "hd2m_utils",
+ "hd2m_search",
  "iced",
  "image",
  "opencv",
@@ -1191,7 +1191,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hd2m_utils"
+name = "hd2m_search"
 version = "0.1.0"
 dependencies = [
  "anyhow",

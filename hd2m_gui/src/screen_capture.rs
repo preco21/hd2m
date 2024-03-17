@@ -4,7 +4,7 @@ use std::{
     time::Instant,
 };
 
-use hd2m_utils::cv_convert::*;
+use hd2m_search::cv_convert::*;
 use image::{RgbImage, RgbaImage};
 use opencv::{self as cv, prelude::*};
 use windows_capture::{

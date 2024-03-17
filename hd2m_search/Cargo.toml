@@ -1,5 +1,5 @@
 [package]
-name = "hd2m_utils"
+name = "hd2m_search"
 description = "hd2m: Some computer-vision related utilities"
 version.workspace = true
 authors.workspace = true

@@ -9,7 +9,7 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-hd2m_utils = { version = "0.1.0", path = "../hd2m_utils" }
+hd2m_search = { version = "0.1.0", path = "../hd2m_search" }
 iced = { version = "0.12.1", features = ["tokio"] }
 image = "0.25.0"
 opencv = { version = "0.88.8", default-features = false, features = [
