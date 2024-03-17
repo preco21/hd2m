@@ -13,31 +13,30 @@ pub enum Direction {
 }
 
 pub fn find_direction_commands(
-    up: &nd::Array2<f32>,
-    right: &nd::Array2<f32>,
-    down: &nd::Array2<f32>,
-    left: &nd::Array2<f32>,
+    up: &nd::ArrayView2<f32>,
+    right: &nd::ArrayView2<f32>,
+    down: &nd::ArrayView2<f32>,
+    left: &nd::ArrayView2<f32>,
     threshold: Option<f32>,
     search_chunk_size: Option<usize>,
 ) -> anyhow::Result<Vec<Vec<Direction>>> {
     let threshold = threshold.unwrap_or(1.0);
     let search_chunk_size = search_chunk_size.unwrap_or(3);
     let directions = raw_mats_to_direction_buffer(up, right, down, left, threshold)?;
-    let commands = collect_direction_commands(&directions, search_chunk_size)?;
+    let commands = collect_direction_commands(&directions.view(), search_chunk_size)?;
     Ok(commands)
 }
 
 pub fn raw_mats_to_direction_buffer(
-    up: &nd::Array2<f32>,
-    right: &nd::Array2<f32>,
-    down: &nd::Array2<f32>,
-    left: &nd::Array2<f32>,
+    up: &nd::ArrayView2<f32>,
+    right: &nd::ArrayView2<f32>,
+    down: &nd::ArrayView2<f32>,
+    left: &nd::ArrayView2<f32>,
     threshold: f32,
 ) -> anyhow::Result<nd::Array2<Direction>> {
     if up.shape() != right.shape() || up.shape() != down.shape() || up.shape() != left.shape() {
         return Err(anyhow::anyhow!("All mats must have the same shape"));
     }
-
     let mut buf: nd::Array2<Direction> = nd::Array2::from_elem(up.dim(), Default::default());
     nd::Zip::from(&mut buf)
         .and(up)
@@ -63,7 +62,7 @@ pub fn raw_mats_to_direction_buffer(
 }
 
 pub fn collect_direction_commands(
-    buf: &nd::Array2<Direction>,
+    buf: &nd::ArrayView2<Direction>,
     search_chunk_size: usize,
 ) -> anyhow::Result<Vec<Vec<Direction>>> {
     // Iterate over the windowed columns and collect the non-None directions.
@@ -224,7 +223,14 @@ mod tests {
             ],
         )?;
 
-        let buf = find_direction_commands(&arr, &arr2, &arr3, &arr4, None, None)?;
+        let buf = find_direction_commands(
+            &arr.view(),
+            &arr2.view(),
+            &arr3.view(),
+            &arr4.view(),
+            None,
+            None,
+        )?;
         assert_eq!(
             buf,
             vec![
