@@ -202,6 +202,43 @@ where
     }
 }
 
+// &Mat -> rgba u8 ImageBuffer
+impl TryFromCv<&cv_core::Mat> for image::ImageBuffer<image::Rgba<u8>, Vec<u8>> {
+    type Error = anyhow::Error;
+
+    fn try_from_cv(from: &cv_core::Mat) -> Result<Self, Self::Error> {
+        let rows = from.rows();
+        let cols = from.cols();
+        anyhow::ensure!(
+            rows != -1 && cols != -1,
+            "Mat with more than 2 dimensions is not supported."
+        );
+
+        let depth = from.depth();
+        let n_channels = from.channels();
+        let width = cols as u32;
+        let height = rows as u32;
+
+        anyhow::ensure!(
+            n_channels == 4,
+            "Expect 4 channels, but get {n_channels} channels"
+        );
+        anyhow::ensure!(depth == u8::DEPTH, "Subpixel type is not supported");
+
+        let image = mat_to_image_buffer_rgba_u8(from, width, height);
+        Ok(image)
+    }
+}
+
+// Mat -> rgba u8 ImageBuffer
+impl TryFromCv<cv_core::Mat> for image::ImageBuffer<image::Rgba<u8>, Vec<u8>> {
+    type Error = anyhow::Error;
+
+    fn try_from_cv(from: cv_core::Mat) -> Result<Self, Self::Error> {
+        (&from).try_into_cv()
+    }
+}
+
 // Utility functions
 fn mat_to_image_buffer_gray<T>(
     mat: &cv_core::Mat,
@@ -240,4 +277,17 @@ where
             image::Rgb([x, y, z])
         }),
     }
+}
+
+fn mat_to_image_buffer_rgba_u8(
+    mat: &cv_core::Mat,
+    width: u32,
+    height: u32,
+) -> image::ImageBuffer<image::Rgba<u8>, Vec<u8>> {
+    image::ImageBuffer::<image::Rgba<u8>, Vec<u8>>::from_raw(
+        width,
+        height,
+        mat.data_bytes().unwrap().to_owned(),
+    )
+    .unwrap()
 }

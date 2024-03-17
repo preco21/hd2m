@@ -2,10 +2,10 @@ use super::TryFromCv;
 use opencv::core as cv_core;
 use std::os::raw::c_void;
 
-impl<'a> TryFromCv<&'a mut windows_capture::frame::Frame<'a>> for cv_core::Mat {
+impl<'a, 'b> TryFromCv<&'a mut windows_capture::frame::Frame<'b>> for cv_core::Mat {
     type Error = anyhow::Error;
 
-    fn try_from_cv(from: &'a mut windows_capture::frame::Frame) -> Result<Self, Self::Error> {
+    fn try_from_cv(from: &'a mut windows_capture::frame::Frame<'b>) -> Result<Self, Self::Error> {
         let mut data = from.buffer()?;
         let mat = unsafe {
             cv_core::Mat::new_rows_cols_with_data(
