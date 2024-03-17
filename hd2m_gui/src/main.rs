@@ -1,8 +1,8 @@
-mod screen_capture;
-
 use iced::{widget::text, Application, Command, Element, Settings, Subscription};
 use std::cell::RefCell;
 use tokio::sync::mpsc;
+
+mod shutdown;
 
 fn main() -> iced::Result {
     let (sender, receiver) = mpsc::unbounded_channel::<i32>();

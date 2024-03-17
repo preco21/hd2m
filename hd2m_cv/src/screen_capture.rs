@@ -4,8 +4,6 @@ use std::{
     time::Instant,
 };
 
-use hd2m_cv::cv_convert::TryFromCv;
-use hd2m_search::cv_convert::*;
 use image::{RgbImage, RgbaImage};
 use opencv::{self as cv, prelude::*};
 use windows_capture::{
@@ -26,7 +24,6 @@ pub struct Capture {
 }
 
 impl GraphicsCaptureApiHandler for Capture {
-    // The type of flags used to get the values from the settings.
     type Flags = String;
 
     // The type of error that can occur during capture, the error will be returned from `CaptureControl` and `start` functions.
@@ -45,60 +42,15 @@ impl GraphicsCaptureApiHandler for Capture {
         })
     }
 
-    // Called every time a new frame is available.
     fn on_frame_arrived(
         &mut self,
         frame: &mut Frame,
         capture_control: InternalCaptureControl,
     ) -> Result<(), Self::Error> {
-        print!(
-            "\rRecording for: {} seconds",
-            self.start.elapsed().as_secs()
-        );
-        io::stdout().flush()?;
-
-        let mut data = frame.buffer()?;
-        // Stop the capture after 6 seconds
         if self.start.elapsed().as_secs() >= 1 {
-            // Finish the encoder and save the video.
-            // self.encoder.take().unwrap().finish()?;
-            let width = data.width();
-            let height = data.height();
-            // let mat = cv::core::Mat::from_slice_rows_cols(
-            //     data.as_raw_nopadding_buffer()?,
-            //     height as usize,
-            //     width as usize,
-            // )?;
-            // let mat = cv::core::Mat::from_slice(data.as_raw_nopadding_buffer()?)?;
-            println!("width: {}, height: {}", width, height);
-
-            // Frame -> Mat
-            // image -> Mat
-            // (optional) Mat -> image
-            // Mat -> ndarray
-
-            let original_buf = data.as_raw_buffer().to_vec();
-            unsafe {
-                // let buf = original_buf.clone();
-                // let mat = cv::core::Mat::new_rows_cols_with_data(
-                //     height as i32,
-                //     width as i32,
-                //     cv::core::CV_8UC4,
-                //     buf.as_ptr() as *mut c_void,
-                //     cv::core::Mat_AUTO_STEP,
-                // )?;
-
-                let mat = cv::core::Mat::try_from_cv(frame)?;
-                let img: RgbImage = mat.try_into_cv()?;
-                img.save_with_format("test.png", image::ImageFormat::Png)?;
-
-                // let img = RgbaImage::from_raw(width, height, mat.data_bytes()?.to_owned()).unwrap();
-                // img.save_with_format("test.png", image::ImageFormat::Png)?;
-
-                // let img = RgbaImage::from_raw(width, height, original_buf).unwrap();
-                // img.save_with_format("test2.png", image::ImageFormat::Png)?;
-                // img.save("test.png")?;
-            }
+            let mat = cv::core::Mat::try_from_cv(frame)?;
+            let img: RgbaImage = mat.try_into_cv()?;
+            img.save_with_format("test.png", image::ImageFormat::Png)?;
 
             capture_control.stop();
 
@@ -109,7 +61,6 @@ impl GraphicsCaptureApiHandler for Capture {
         Ok(())
     }
 
-    // Optional handler called when the capture item (usually a window) closes.
     fn on_closed(&mut self) -> Result<(), Self::Error> {
         println!("Capture Session Closed");
 
