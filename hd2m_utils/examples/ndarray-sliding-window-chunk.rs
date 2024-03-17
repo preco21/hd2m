@@ -32,8 +32,6 @@ fn main() {
     //     .into_iter()
     //     .map(|rows| rows.windows((Axis(1), vec![], |acc, el| el));
 
-    // 히스토그램 이하 코드는 굳이 matrix 유지할 필요 없음
-
     // arr.windows((Axis(0), 3))
     //     .into_iter()
     //     .map(|rows| rows.map_axis(Axis(1), |col| col.last().unwrap()).to_owned())
