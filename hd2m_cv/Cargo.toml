@@ -17,7 +17,7 @@ opencv = { version = "0.88.8", default-features = false, features = [
     "imgproc",
 ] }
 image = "0.25.0"
-windows-capture = { version = "1.0.68", optional = false }
+windows-capture = { version = "1.0.68", optional = true }
 
 [features]
-# windows-capture = ["dep:windows-capture"]
+windows-capture = ["dep:windows-capture"]
