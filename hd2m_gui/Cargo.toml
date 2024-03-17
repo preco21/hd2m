@@ -10,5 +10,10 @@ edition = "2021"
 
 [dependencies]
 hd2m_utils = { version = "0.1.0", path = "../hd2m_utils" }
-iced = "0.12.1"
-tokio = "1.36.0"
+iced = { version = "0.12.1", features = ["tokio"] }
+image = "0.25.0"
+opencv = { version = "0.88.8", default-features = false, features = [
+    "imgproc",
+] }
+tokio = { version = "1.36.0", features = ["sync"] }
+windows-capture = "1.0.68"
