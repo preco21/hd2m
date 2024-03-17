@@ -1,92 +1,94 @@
-use std::{
-    io::{self, Write},
-    os::raw::c_void,
-    time::Instant,
-};
-
-use image::{RgbImage, RgbaImage};
-use opencv::{self as cv, prelude::*};
+use crate::cv_convert::*;
+use anyhow::{Error, Result};
+use opencv::{self as cv};
+use tokio::sync::{mpsc, oneshot};
 use windows_capture::{
     capture::GraphicsCaptureApiHandler,
-    encoder::{ImageEncoder, VideoEncoder, VideoEncoderQuality, VideoEncoderType},
-    frame::{Frame, ImageFormat},
     graphics_capture_api::InternalCaptureControl,
-    monitor::Monitor,
     settings::{ColorFormat, CursorCaptureSettings, DrawBorderSettings, Settings},
+    window::Window,
 };
 
-// This struct will be used to handle the capture events.
-pub struct Capture {
-    // The video encoder that will be used to encode the frames.
-    encoder: Option<ImageEncoder>,
-    // To measure the time the capture has been running
-    start: Instant,
+pub type TriggerCaptureRx = mpsc::Receiver<oneshot::Sender<cv::core::Mat>>;
+
+#[derive(Debug)]
+pub struct CaptureManagerConfig {
+    pub window_title: String,
+}
+
+#[derive(Debug)]
+pub struct CaptureManager {
+    window_title: String,
+}
+
+impl CaptureManager {
+    pub fn new(config: CaptureManagerConfig) -> Result<Self> {
+        Ok(Self {
+            window_title: config.window_title,
+        })
+    }
+
+    // FIXME: To make it to be able to pass shutdown signals
+    pub async fn start(&self, trigger_capture_rx: TriggerCaptureRx) -> Result<()> {
+        let window = Window::from_contains_name(&self.window_title)?;
+        let settings = Settings::new(
+            window,
+            CursorCaptureSettings::WithoutCursor,
+            DrawBorderSettings::WithoutBorder,
+            ColorFormat::Rgba8,
+            CaptureConfig { trigger_capture_rx },
+        )?;
+        let _ = tokio::task::spawn_blocking(move || {
+            Capture::start(settings)?;
+            Result::<()>::Ok(())
+        })
+        .await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct CaptureConfig {
+    pub trigger_capture_rx: TriggerCaptureRx,
+}
+
+#[derive(Debug)]
+struct Capture {
+    trigger_capture_rx: TriggerCaptureRx,
 }
 
 impl GraphicsCaptureApiHandler for Capture {
-    type Flags = String;
+    type Flags = CaptureConfig;
+    type Error = Error;
 
-    // The type of error that can occur during capture, the error will be returned from `CaptureControl` and `start` functions.
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
-    // Function that will be called to create the struct. The flags can be passed from settings.
-    fn new(message: Self::Flags) -> Result<Self, Self::Error> {
-        println!("Got The Flag: {message}");
-
-        let encoder =
-            ImageEncoder::new(windows_capture::frame::ImageFormat::Png, ColorFormat::Rgba8);
-
+    fn new(config: CaptureConfig) -> Result<Self, Self::Error> {
         Ok(Self {
-            encoder: Some(encoder),
-            start: Instant::now(),
+            trigger_capture_rx: config.trigger_capture_rx,
         })
     }
 
     fn on_frame_arrived(
         &mut self,
-        frame: &mut Frame,
+        frame: &mut windows_capture::frame::Frame,
         capture_control: InternalCaptureControl,
     ) -> Result<(), Self::Error> {
-        if self.start.elapsed().as_secs() >= 1 {
-            let mat = cv::core::Mat::try_from_cv(frame)?;
-            let img: RgbaImage = mat.try_into_cv()?;
-            img.save_with_format("test.png", image::ImageFormat::Png)?;
-
-            capture_control.stop();
-
-            // Because there wasn't any new lines in previous prints
-            println!();
+        let msg = self.trigger_capture_rx.try_recv();
+        match msg {
+            Ok(cb) => {
+                let mat = cv::core::Mat::try_from_cv(frame)?;
+                let _ = cb.send(mat);
+                Ok(())
+            }
+            Err(mpsc::error::TryRecvError::Empty) => Ok(()),
+            Err(mpsc::error::TryRecvError::Disconnected) => {
+                capture_control.stop();
+                return Err(Error::msg("Capture trigger channel closed"));
+            }
         }
-
-        Ok(())
     }
 
     fn on_closed(&mut self) -> Result<(), Self::Error> {
         println!("Capture Session Closed");
-
         Ok(())
     }
-}
-
-pub fn start_capture() {
-    // Gets The Foreground Window, Checkout The Docs For Other Capture Items
-    let primary_monitor = Monitor::primary().expect("There is no primary monitor");
-
-    let settings = Settings::new(
-        // Item To Captue
-        primary_monitor,
-        // Capture Cursor Settings
-        CursorCaptureSettings::WithoutCursor,
-        // Draw Borders Settings
-        DrawBorderSettings::WithoutBorder,
-        // The desired color format for the captured frame.
-        ColorFormat::Rgba8,
-        // Additional flags for the capture settings that will be passed to user defined `new` function.
-        "Yea This Works".to_string(),
-    )
-    .unwrap();
-
-    // Starts the capture and takes control of the current thread.
-    // The errors from handler trait will end up here
-    Capture::start(settings).expect("Screen Capture Failed");
 }

@@ -18,5 +18,5 @@ image = "0.25.0"
 opencv = { version = "0.88.8", default-features = false, features = [
     "imgproc",
 ] }
-tokio = { version = "1.36.0", features = ["sync"] }
+tokio = { version = "1.36.0", features = ["sync", "macros"] }
 windows-capture = "1.0.68"
