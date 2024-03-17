@@ -11,9 +11,5 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.81"
-half = "2.4.0"
 ndarray = { version = "0.15.6", features = ["rayon"] }
-opencv = { version = "0.88.8", default-features = false, features = [] }
-tokio = { version = "1.36.0", features = ["sync"] }
 strum = { version = "0.26.2", features = ["derive"] }
-image = "0.25.0"

@@ -1,0 +1,23 @@
+[package]
+name = "hd2m_cv"
+description = "hd2m: Some computer-vision related utilities"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+readme = "README.md"
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "1.0.81"
+half = "2.4.0"
+ndarray = { version = "0.15.6", features = ["rayon"] }
+opencv = { version = "0.88.8", default-features = false, features = [
+    "imgproc",
+] }
+image = "0.25.0"
+windows-capture = { version = "1.0.68", optional = false }
+
+[features]
+# windows-capture = ["dep:windows-capture"]

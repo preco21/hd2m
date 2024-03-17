@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["hd2m_gui", "hd2m_search"]
+members = [ "hd2m_cv","hd2m_gui", "hd2m_search"]
 
 [workspace.package]
 version = "0.1.0"

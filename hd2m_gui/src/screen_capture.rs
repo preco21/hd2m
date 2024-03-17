@@ -4,6 +4,7 @@ use std::{
     time::Instant,
 };
 
+use hd2m_cv::cv_convert::TryFromCv;
 use hd2m_search::cv_convert::*;
 use image::{RgbImage, RgbaImage};
 use opencv::{self as cv, prelude::*};
@@ -56,17 +57,6 @@ impl GraphicsCaptureApiHandler for Capture {
         );
         io::stdout().flush()?;
 
-        // Send the frame to the video encoder
-        // self.encoder.as_mut().unwrap().encode(
-        //     frame.buffer().unwrap().as_raw_buffer(),
-        //     1920,
-        //     1080,
-        // )?;
-        // self.encoder.as_mut().unwrap().send_frame(frame)?;
-
-        // Note: The frame has other uses too for example you can save a single for to a file like this:
-        // frame.save_as_image("frame.png", ImageFormat::Png)?;
-        // Or get the raw data like this so you have full control:
         let mut data = frame.buffer()?;
         // Stop the capture after 6 seconds
         if self.start.elapsed().as_secs() >= 1 {
@@ -89,17 +79,17 @@ impl GraphicsCaptureApiHandler for Capture {
 
             let original_buf = data.as_raw_buffer().to_vec();
             unsafe {
-                let buf = original_buf.clone();
-                let mat = cv::core::Mat::new_rows_cols_with_data(
-                    width as i32,
-                    height as i32,
-                    cv::core::CV_8UC4,
-                    buf.as_ptr() as *mut c_void,
-                    cv::core::Mat_AUTO_STEP,
-                )?;
+                // let buf = original_buf.clone();
+                // let mat = cv::core::Mat::new_rows_cols_with_data(
+                //     height as i32,
+                //     width as i32,
+                //     cv::core::CV_8UC4,
+                //     buf.as_ptr() as *mut c_void,
+                //     cv::core::Mat_AUTO_STEP,
+                // )?;
 
+                let mat = cv::core::Mat::try_from_cv(frame)?;
                 let img: RgbImage = mat.try_into_cv()?;
-
                 img.save_with_format("test.png", image::ImageFormat::Png)?;
 
                 // let img = RgbaImage::from_raw(width, height, mat.data_bytes()?.to_owned()).unwrap();

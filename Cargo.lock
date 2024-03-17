@@ -1179,9 +1179,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hd2m_cv"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "half",
+ "image",
+ "ndarray",
+ "opencv",
+ "windows-capture",
+]
+
+[[package]]
 name = "hd2m_gui"
 version = "0.1.0"
 dependencies = [
+ "hd2m_cv",
  "hd2m_search",
  "iced",
  "image",
@@ -1195,12 +1208,8 @@ name = "hd2m_search"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "half",
- "image",
  "ndarray",
- "opencv",
  "strum",
- "tokio",
 ]
 
 [[package]]

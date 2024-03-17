@@ -1,4 +1,3 @@
-use nd::parallel::prelude::IntoParallelIterator;
 use ndarray::{self as nd, parallel::prelude::*};
 use strum::Display;
 
