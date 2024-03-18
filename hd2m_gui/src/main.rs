@@ -4,35 +4,15 @@ use iced::{widget::text, Application, Command, Element, Settings, Subscription};
 use image::RgbaImage;
 use opencv::{self as cv};
 use std::cell::RefCell;
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 
+mod capture;
+mod message;
 mod shutdown;
 
-fn main() -> iced::Result {
-    let (sender, receiver) = mpsc::unbounded_channel::<i32>();
-
-    std::thread::spawn(move || {
-        for i in 0.. {
-            sender.send(i).unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(2000));
-        }
-    });
-
-    Ui::run(Settings::with_flags(UiFlags { receiver }))
-}
-
-struct UiFlags {
-    receiver: mpsc::UnboundedReceiver<i32>,
-}
-
-struct Ui {
-    receiver: RefCell<Option<mpsc::UnboundedReceiver<i32>>>,
-    tick_tx: mpsc::Sender<()>,
-    capture_trigger: (
-        mpsc::Sender<oneshot::Sender<cv::core::Mat>>,
-        mpsc::Receiver<oneshot::Sender<cv::core::Mat>>,
-    ),
-    num: i32,
+#[derive(Default)]
+struct App {
+    capture_proc_tx: Option<mpsc::Sender<capture::Action>>,
 }
 
 #[derive(Debug, Clone)]
@@ -41,15 +21,14 @@ enum Message {
     ExternalMessageReceived(i32),
 }
 
-impl Application for Ui {
+impl Application for App {
     type Executor = iced::executor::Default;
     type Message = Message;
     type Theme = iced::Theme;
-    type Flags = UiFlags;
 
-    fn new(flags: UiFlags) -> (Self, Command<Message>) {
+    fn new(flags: AppFlags) -> (Self, Command<Message>) {
         let (tick_tx, mut tick_rx) = mpsc::channel(1);
-        let app = Ui {
+        let app = App {
             receiver: RefCell::new(Some(flags.receiver)),
             tick_tx,
             capture_trigger: mpsc::channel(1),
@@ -73,10 +52,12 @@ impl Application for Ui {
                     tokio::spawn(async move {
                         loop {
                             tick_rx.recv().await;
+                            let now = std::time::Instant::now();
                             let (cap_tx, cap_rx) = oneshot::channel();
                             let _ = capture_chan_tx.send(cap_tx).await;
                             let result = cap_rx.await.unwrap();
                             let cv: RgbaImage = result.try_into_cv().unwrap();
+                            println!("screenshot took: {:?}", now.elapsed());
                             cv.save("screenshot.png").unwrap();
                         }
                     });
@@ -105,7 +86,7 @@ impl Application for Ui {
             "led changes",
             (self.receiver.take(), self.tick_tx.clone()),
             move |(mut receiver, tick_tx)| async move {
-                let num = receiver.as_mut().unwrap().recv().await.unwrap();
+                let num = receiver.unwrap().recv().await.unwrap();
                 tick_tx.send(()).await.unwrap();
                 (Message::ExternalMessageReceived(num), (receiver, tick_tx))
             },
@@ -139,4 +120,8 @@ impl Application for Ui {
     fn view(&self) -> Element<Message> {
         text(self.num).into()
     }
+}
+
+fn main() -> iced::Result {
+    App::run(Settings::default())
 }
