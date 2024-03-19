@@ -1,4 +1,71 @@
-/// lib: image
+> Note: Not sure why image crate and opencv's imread produces different results
+when used single luma channel. maybe i guess that the difference in luma values
+may result in different min/max vals across tests
+
+## lib: image (unscaled image 1080p)
+
+### luma only
+source_img_mat: Mat { type: "CV_8UC1", flags: 1124024320, channels: 1, depth: "CV_8U", dims: 2, size: Size_ { width: 1920, height: 1080 }, rows: 1080, cols: 1920, elem_size: 1, elem_size1: 1, total: 2073600, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.7422633171081543, max=0.7537050843238831, min_loc=Point_ { x: 924, y: 284 }, max_loc=Point_ { x: 84, y: 939 }
+MinMaxLoc vals: min=-0.7193685173988342, max=0.7598695158958435, min_loc=Point_ { x: 1292, y: 67 }, max_loc=Point_ { x: 85, y: 950 }
+MinMaxLoc vals: min=-0.7414100766181946, max=0.8051437735557556, min_loc=Point_ { x: 413, y: 876 }, max_loc=Point_ { x: 332, y: 989 }
+MinMaxLoc vals: min=-0.7503693699836731, max=0.8233227729797363, min_loc=Point_ { x: 412, y: 877 }, max_loc=Point_ { x: 321, y: 990 }
+
+### luma w/ alpha channels
+source_img_mat: Mat { type: "CV_8UC2", flags: 1124024328, channels: 2, depth: "CV_8U", dims: 2, size: Size_ { width: 1920, height: 1080 }, rows: 1080, cols: 1920, elem_size: 2, elem_size1: 1, total: 2073600, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.4245080351829529, max=0.4310489892959595, min_loc=Point_ { x: 924, y: 284 }, max_loc=Point_ { x: 84, y: 939 }
+MinMaxLoc vals: min=-0.4117690920829773, max=0.43495190143585205, min_loc=Point_ { x: 1292, y: 67 }, max_loc=Point_ { x: 85, y: 950 }
+MinMaxLoc vals: min=-0.42274168133735657, max=0.4590839147567749, min_loc=Point_ { x: 413, y: 876 }, max_loc=Point_ { x: 332, y: 989 }
+MinMaxLoc vals: min=-0.42505350708961487, max=0.4663783013820648, min_loc=Point_ { x: 412, y: 877 }, max_loc=Point_ { x: 321, y: 990 }
+
+### with rgb (no alpha) - almost identical with opencv with any colors
+source_img_mat: Mat { type: "CV_8UC3", flags: 1124024336, channels: 3, depth: "CV_8U", dims: 2, size: Size_ { width: 1920, height: 1080 }, rows: 1080, cols: 1920, elem_size: 3, elem_size1: 1, total: 2073600, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.7096419334411621, max=0.754115104675293, min_loc=Point_ { x: 1100, y: 531 }, max_loc=Point_ { x: 84, y: 939 }
+MinMaxLoc vals: min=-0.6748096346855164, max=0.7585517764091492, min_loc=Point_ { x: 363, y: 271 }, max_loc=Point_ { x: 85, y: 950 }
+MinMaxLoc vals: min=-0.7074378728866577, max=0.80462247133255, min_loc=Point_ { x: 1102, y: 533 }, max_loc=Point_ { x: 332, y: 989 }
+MinMaxLoc vals: min=-0.6997201442718506, max=0.8228336572647095, min_loc=Point_ { x: 894, y: 313 }, max_loc=Point_ { x: 321, y: 990 }
+
+## lib: image (unscaled image 2K)
+
+### luma only
+source_img_mat: Mat { type: "CV_8UC1", flags: 1124024320, channels: 1, depth: "CV_8U", dims: 2, size: Size_ { width: 2560, height: 1440 }, rows: 1440, cols: 2560, elem_size: 1, elem_size1: 1, total: 3686400, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.6803313493728638, max=0.9487326145172119, min_loc=Point_ { x: 1806, y: 1341 }, max_loc=Point_ { x: 216, y: 490 }
+MinMaxLoc vals: min=-0.7239564657211304, max=0.9845128059387207, min_loc=Point_ { x: 2099, y: 1304 }, max_loc=Point_ { x: 187, y: 212 }
+MinMaxLoc vals: min=-0.7264068126678467, max=0.9871770143508911, min_loc=Point_ { x: 1368, y: 172 }, max_loc=Point_ { x: 215, y: 212 }
+MinMaxLoc vals: min=-0.7689417600631714, max=0.9914966225624084, min_loc=Point_ { x: 1461, y: 14 }, max_loc=Point_ { x: 216, y: 560 }
+
+### luma w/ alpha channels
+source_img_mat: Mat { type: "CV_8UC2", flags: 1124024328, channels: 2, depth: "CV_8U", dims: 2, size: Size_ { width: 2560, height: 1440 }, rows: 1440, cols: 2560, elem_size: 2, elem_size1: 1, total: 3686400, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.3890862762928009, max=0.5425868630409241, min_loc=Point_ { x: 1806, y: 1341 }, max_loc=Point_ { x: 216, y: 490 }
+MinMaxLoc vals: min=-0.4143959879875183, max=0.5635384917259216, min_loc=Point_ { x: 2099, y: 1304 }, max_loc=Point_ { x: 187, y: 212 }
+MinMaxLoc vals: min=-0.4141933023929596, max=0.56287682056427, min_loc=Point_ { x: 1368, y: 172 }, max_loc=Point_ { x: 215, y: 212 }
+MinMaxLoc vals: min=-0.43557247519493103, max=0.5616419911384583, min_loc=Point_ { x: 1461, y: 14 }, max_loc=Point_ { x: 216, y: 560 }
+
+### with rgb (no alpha)
+source_img_mat: Mat { type: "CV_8UC3", flags: 1124024336, channels: 3, depth: "CV_8U", dims: 2, size: Size_ { width: 2560, height: 1440 }, rows: 1440, cols: 2560, elem_size: 3, elem_size1: 1, total: 3686400, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.6085445880889893, max=0.9503976702690125, min_loc=Point_ { x: 875, y: 439 }, max_loc=Point_ { x: 216, y: 490 }
+MinMaxLoc vals: min=-0.583107054233551, max=0.9842503070831299, min_loc=Point_ { x: 2099, y: 1304 }, max_loc=Point_ { x: 158, y: 560 }
+MinMaxLoc vals: min=-0.7332563400268555, max=0.9866673946380615, min_loc=Point_ { x: 573, y: 26 }, max_loc=Point_ { x: 215, y: 212 }
+MinMaxLoc vals: min=-0.7626270651817322, max=0.9910315871238708, min_loc=Point_ { x: 1461, y: 14 }, max_loc=Point_ { x: 216, y: 560 }
+
+## opencv: imread (unscaled image 1080p)
+
+### luma only
+source_img_mat: Mat { type: "CV_8UC1", flags: 1124024320, channels: 1, depth: "CV_8U", dims: 2, size: Size_ { width: 1920, height: 1080 }, rows: 1080, cols: 1920, elem_size: 1, elem_size1: 1, total: 2073600, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.7565770745277405, max=0.7608322501182556, min_loc=Point_ { x: 880, y: 745 }, max_loc=Point_ { x: 815, y: 911 }
+MinMaxLoc vals: min=-0.712121307849884, max=0.7605675458908081, min_loc=Point_ { x: 1291, y: 67 }, max_loc=Point_ { x: 85, y: 950 }
+MinMaxLoc vals: min=-0.7387966513633728, max=0.8057172298431396, min_loc=Point_ { x: 1102, y: 533 }, max_loc=Point_ { x: 332, y: 989 }
+MinMaxLoc vals: min=-0.7268778085708618, max=0.8235710263252258, min_loc=Point_ { x: 894, y: 312 }, max_loc=Point_ { x: 321, y: 990 }
+
+### with any colors
+source_img_mat: Mat { type: "CV_8UC3", flags: 1124024336, channels: 3, depth: "CV_8U", dims: 2, size: Size_ { width: 1920, height: 1080 }, rows: 1080, cols: 1920, elem_size: 3, elem_size1: 1, total: 2073600, is_continuous: true, is_submatrix: false }
+MinMaxLoc vals: min=-0.7096419334411621, max=0.7541152834892273, min_loc=Point_ { x: 1100, y: 531 }, max_loc=Point_ { x: 84, y: 939 }
+MinMaxLoc vals: min=-0.6748096346855164, max=0.7585519552230835, min_loc=Point_ { x: 363, y: 271 }, max_loc=Point_ { x: 85, y: 950 }
+MinMaxLoc vals: min=-0.7074378728866577, max=0.80462247133255, min_loc=Point_ { x: 1102, y: 533 }, max_loc=Point_ { x: 332, y: 989 }
+MinMaxLoc vals: min=-0.6997201442718506, max=0.8228336572647095, min_loc=Point_ { x: 894, y: 313 }, max_loc=Point_ { x: 321, y: 990 }
+
+
+## lib: image (scaled image 2K) - mistakenly scaled to 2K from 2K using Lanczos algorithm
 
 // luma only
 source_img_mat: Mat { type: "CV_8UC1", flags: 1124024320, channels: 1, depth: "CV_8U", dims: 2, size: Size_ { width: 2560, height: 1440 }, rows: 1440, cols: 2560, elem_size: 1, elem_size1: 1, total: 3686400, is_continuous: true, is_submatrix: false }
@@ -13,10 +80,3 @@ MinMaxLoc vals: min=-0.3890862762928009, max=0.5425868630409241, min_loc=Point_ 
 MinMaxLoc vals: min=-0.4143959879875183, max=0.5635384917259216, min_loc=Point_ { x: 2099, y: 1304 }, max_loc=Point_ { x: 187, y: 212 }
 MinMaxLoc vals: min=-0.4141933023929596, max=0.56287682056427, min_loc=Point_ { x: 1368, y: 172 }, max_loc=Point_ { x: 215, y: 212 }
 MinMaxLoc vals: min=-0.43557247519493103, max=0.5616419911384583, min_loc=Point_ { x: 1461, y: 14 }, max_loc=Point_ { x: 216, y: 560 }
-
-/// lib: opencv imread
-source_img_mat: Mat { type: "CV_8UC1", flags: 1124024320, channels: 1, depth: "CV_8U", dims: 2, size: Size_ { width: 2560, height: 1440 }, rows: 1440, cols: 2560, elem_size: 1, elem_size1: 1, total: 3686400, is_continuous: true, is_submatrix: false }
-MinMaxLoc vals: min=-0.668315589427948, max=0.9506553411483765, min_loc=Point_ { x: 1806, y: 1341 }, max_loc=Point_ { x: 216, y: 490 }
-MinMaxLoc vals: min=-0.7165776491165161, max=0.9854183793067932, min_loc=Point_ { x: 2099, y: 1304 }, max_loc=Point_ { x: 187, y: 212 }
-MinMaxLoc vals: min=-0.7411693334579468, max=0.9884078502655029, min_loc=Point_ { x: 573, y: 26 }, max_loc=Point_ { x: 215, y: 212 }
-MinMaxLoc vals: min=-0.76894211769104, max=0.991799533367157, min_loc=Point_ { x: 1461, y: 14 }, max_loc=Point_ { x: 216, y: 560 }
