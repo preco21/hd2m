@@ -7,6 +7,8 @@ use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
     let source_img = image::open("./examples/source2.png")?;
+    // upscale
+    let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
     let source_img_mat: cv::core::Mat = source_img.to_luma_alpha8().try_into_cv()?;
     let source_img_mat2: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
@@ -71,25 +73,25 @@ fn find_min_max_log(
         &cv::core::no_array(),
     )?;
 
-    // let mut dst_img = source.clone();
-    // cv::imgproc::rectangle(
-    //     &mut dst_img,
-    //     cv::core::Rect::from_point_size(max_loc, cv::core::Size::new(30, 30)),
-    //     cv::core::VecN([255., 255., 0., 0.]),
-    //     2,
-    //     cv::imgproc::LINE_8,
-    //     0,
-    // )?;
+    let mut dst_img = source.clone();
+    cv::imgproc::rectangle(
+        &mut dst_img,
+        cv::core::Rect::from_point_size(max_loc, cv::core::Size::new(30, 30)),
+        cv::core::VecN([255., 255., 0., 0.]),
+        2,
+        cv::imgproc::LINE_8,
+        0,
+    )?;
 
-    // let i: RgbaImage = dst_img.try_into_cv()?;
-    // i.save(format!("./result{num}.png").as_str())?;
+    let i: RgbaImage = dst_img.try_into_cv()?;
+    i.save(format!("./result{num}.png").as_str())?;
     // image::RgbaImage::try_from_cv(, format!("./result{num}.png").as_str())?;
 
-    cv::imgcodecs::imwrite(
-        format!("./result{num}.png").as_str(),
-        &source,
-        &cv::core::Vector::new(),
-    )?;
+    // cv::imgcodecs::imwrite(
+    //     format!("./result{num}.png").as_str(),
+    //     &source,
+    //     &cv::core::Vector::new(),
+    // )?;
 
     println!(
         "MinMaxLoc vals: min={:?}, max={:?}, min_loc={:?}, max_loc={:?}",
