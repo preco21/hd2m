@@ -19,8 +19,8 @@ pub fn find_direction_commands(
     threshold: Option<f32>,
     search_chunk_size: Option<usize>,
 ) -> anyhow::Result<Vec<Vec<Direction>>> {
-    let threshold = threshold.unwrap_or(1.0);
-    let search_chunk_size = search_chunk_size.unwrap_or(3);
+    let threshold = threshold.unwrap_or(0.9);
+    let search_chunk_size = search_chunk_size.unwrap_or(10);
     let directions = raw_mats_to_direction_buffer(up, right, down, left, threshold)?;
     let commands = collect_direction_commands(&directions.view(), search_chunk_size)?;
     Ok(commands)
@@ -36,6 +36,7 @@ pub fn raw_mats_to_direction_buffer(
     if up.shape() != right.shape() || up.shape() != down.shape() || up.shape() != left.shape() {
         return Err(anyhow::anyhow!("All mats must have the same shape"));
     }
+
     let mut buf: nd::Array2<Direction> = nd::Array2::from_elem(up.dim(), Default::default());
     nd::Zip::from(&mut buf)
         .and(up)

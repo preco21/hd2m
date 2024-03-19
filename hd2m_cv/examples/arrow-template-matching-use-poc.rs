@@ -3,13 +3,14 @@ use std::time::Duration;
 use anyhow::Result;
 use hd2m_cv::cv_convert::{IntoCv, TryFromCv, TryIntoCv};
 use image::RgbaImage;
+use ndarray::*;
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
     let source_img = image::open("./examples/source2.png")?;
     // upscale
-    let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
-    let source_img_mat: cv::core::Mat = source_img.to_luma_alpha8().try_into_cv()?;
+    // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
+    let source_img_mat: cv::core::Mat = source_img.to_luma8().try_into_cv()?;
     let source_img_mat2: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
     let up_img = image::open("./examples/up.png")?;
@@ -17,39 +18,66 @@ fn main() -> Result<()> {
     let right_img = image::open("./examples/right.png")?;
     let left_img = image::open("./examples/left.png")?;
 
-    let up_img_mat: cv::core::Mat = up_img.to_luma_alpha8().try_into_cv()?;
-    let down_img_mat: cv::core::Mat = down_img.to_luma_alpha8().try_into_cv()?;
-    let right_img_mat: cv::core::Mat = right_img.to_luma_alpha8().try_into_cv()?;
-    let left_img_mat: cv::core::Mat = left_img.to_luma_alpha8().try_into_cv()?;
+    let up_img_mat: cv::core::Mat = up_img.to_luma8().try_into_cv()?;
+    let down_img_mat: cv::core::Mat = down_img.to_luma8().try_into_cv()?;
+    let right_img_mat: cv::core::Mat = right_img.to_luma8().try_into_cv()?;
+    let left_img_mat: cv::core::Mat = left_img.to_luma8().try_into_cv()?;
 
     println!("source_img_mat: {:?}", source_img_mat);
+
+    println!(
+        "source image width/height: {:?}",
+        (source_img.width(), source_img.height())
+    );
 
     let start = std::time::Instant::now();
 
     let mat_up = match_template(&up_img_mat, &source_img_mat)?;
+    find_min_max_log(&mat_up, &source_img_mat2, 1)?;
     let mat_down = match_template(&down_img_mat, &source_img_mat)?;
+    find_min_max_log(&mat_down, &source_img_mat2, 2)?;
     let mat_right = match_template(&right_img_mat, &source_img_mat)?;
+    find_min_max_log(&mat_right, &source_img_mat2, 3)?;
     let mat_left = match_template(&left_img_mat, &source_img_mat)?;
+    find_min_max_log(&mat_left, &source_img_mat2, 4)?;
 
-    println!("up_mat: {:?}", mat_up);
-    println!("up_mat: {:?}", mat_down);
-    println!("up_mat: {:?}", mat_right);
-    println!("up_mat: {:?}", mat_left);
+    // println!("up_mat: {:?}", mat_up);
+    // println!("up_mat: {:?}", mat_down);
+    // println!("up_mat: {:?}", mat_right);
+    // println!("up_mat: {:?}", mat_left);
 
-    let up_nd: ndarray::Array2<f32> = mat_up.try_into_cv()?;
-    let down_nd: ndarray::Array2<f32> = mat_down.try_into_cv()?;
-    let right_nd: ndarray::Array2<f32> = mat_right.try_into_cv()?;
-    let left_nd: ndarray::Array2<f32> = mat_left.try_into_cv()?;
+    let up_nd: Array3<f32> = mat_up.try_into_cv()?;
+    let up_nd = convert_array3_to_array2(&up_nd);
+
+    // let up_nd: ndarray::ArrayD<f32> = (&mat_up).try_into_cv()?;
+    // let up_nd: ndarray::Array2<f32> = up_nd.into_dimensionality::<Ix2>()?;
+
+    let down_nd: Array3<f32> = mat_down.try_into_cv()?;
+    let down_nd = convert_array3_to_array2(&down_nd);
+    // let down_nd: ndarray::ArrayD<f32> = (&mat_down).try_into_cv()?;
+    // let down_nd: ndarray::Array2<f32> = down_nd.into_dimensionality::<Ix2>()?;
+
+    let right_nd: Array3<f32> = mat_right.try_into_cv()?;
+    let right_nd = convert_array3_to_array2(&right_nd);
+    // let right_nd: ndarray::ArrayD<f32> = (&mat_right).try_into_cv()?;
+    // let right_nd: ndarray::Array2<f32> = right_nd.into_dimensionality::<Ix2>()?;
+
+    let left_nd: Array3<f32> = mat_left.try_into_cv()?;
+    let left_nd = convert_array3_to_array2(&left_nd);
+    // let left_nd: ndarray::ArrayD<f32> = (&mat_left).try_into_cv()?;
+    // let left_nd: ndarray::Array2<f32> = left_nd.into_dimensionality::<Ix2>()?;
+
+    // println!("up_nd: {:?}", up_nd);
 
     let res = hd2m_search::find_direction_commands(
         &up_nd.view(),
-        &down_nd.view(),
         &right_nd.view(),
+        &down_nd.view(),
         &left_nd.view(),
-        Some(0.54),
+        Some(0.989),
         None,
     )?;
-    println!("res: {:?}", res);
+    println!("res: {:?}", res.get(0));
 
     println!("Elapsed: {:?}", start.elapsed());
 
@@ -58,14 +86,15 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+// 나중에 이것 기반으로 옮기기
 fn match_template(template: &cv::core::Mat, source: &cv::core::Mat) -> Result<cv::core::Mat> {
     let mut res = cv::core::Mat::default();
     cv::imgproc::match_template(
         source,
         template,
         &mut res,
-        cv::imgproc::TM_CCOEFF_NORMED,
-        &cv::core::no_array(),
+        cv::imgproc::TM_CCORR_NORMED,
+        template,
     )?;
     Ok(res)
 }
@@ -136,3 +165,32 @@ fn find_min_max_log(
 
 // 여기에서 필요한 기능을 가진 STATIC LINK 라이브러리 전부 가져와야 함
 // C:\Users\preco\vcpkg\installed\x64-windows\lib
+
+// fn try_mat_to_array2(mat: &cv::core::Mat) -> Result<ndarray::Array2<f32>> {
+//     if !mat.is_continuous() {
+//         return Err(anyhow::anyhow!("Mat is not continuous"));
+//     }
+//     let bytes = mat.data_bytes()?;
+//     let size = mat.size()?;
+//     let a =
+//         ndarray::ArrayView2::<f32>::from_shape((size.height as usize, size.width as usize), bytes)?;
+//     Ok(a.to_owned())
+// }
+
+fn convert_array3_to_array2<T>(array3: &Array3<T>) -> Array2<T>
+where
+    T: Clone,
+{
+    // Get the dimensions of the input array
+    let (depth, height, width) = array3.dim();
+
+    // Slice the array to merge the first element of the third dimension into the second dimension
+    let merged_array = array3.slice(s![1.., .., ..]).reversed_axes();
+
+    // Reshape the merged array to a 2-dimensional array
+    let array2 = merged_array
+        .into_shape((height, (depth - 1) * width))
+        .expect("Failed to reshape merged array");
+
+    array2.to_owned()
+}
