@@ -15,7 +15,7 @@ hd2m_cv = { version = "0.1.0", path = "../hd2m_cv", features = [
 hd2m_search = { version = "0.1.0", path = "../hd2m_search" }
 iced = { version = "0.12.1", features = ["tokio"] }
 image = "0.25.0"
-opencv = { version = "0.88.8", default-features = false, features = [
+opencv = { version = "0.89.0", default-features = false, features = [
     "imgproc",
 ] }
 tokio = { version = "1.36.0", features = ["sync", "macros"] }
