@@ -1,1 +1,2 @@
-pub mod finder;
+mod finder;
+pub use finder::*;
