@@ -9,9 +9,9 @@ fn main() -> Result<()> {
     let source_img = image::open("./examples/source2.png")?;
 
     let source_img_mat =
-        cv::imgcodecs::imread("./examples/source2.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
+        cv::imgcodecs::imread("./examples/source.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
     // upscale
-    let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
+    // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
     // let source_img_mat: cv::core::Mat = source_img.to_luma_alpha8().try_into_cv()?;
     let source_img_mat2: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
@@ -24,6 +24,9 @@ fn main() -> Result<()> {
     // let down_img_mat: cv::core::Mat = down_img.to_luma_alpha8().try_into_cv()?;
     // let right_img_mat: cv::core::Mat = right_img.to_luma_alpha8().try_into_cv()?;
     // let left_img_mat: cv::core::Mat = left_img.to_luma_alpha8().try_into_cv()?;
+
+    // Maybe the luma algorithm is different from the image crate's one
+    // println!("mat slice: {:?}", &source_img_mat.at_row::<u8>(0).unwrap());
 
     let up_img_mat = cv::imgcodecs::imread("./examples/up.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
     let down_img_mat =

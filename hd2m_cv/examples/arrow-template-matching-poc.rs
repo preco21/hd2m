@@ -2,15 +2,15 @@ use std::time::Duration;
 
 use anyhow::Result;
 use hd2m_cv::cv_convert::{IntoCv, TryFromCv, TryIntoCv};
-use image::RgbaImage;
+use image::{RgbImage, RgbaImage};
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
     let source_img = image::open("./examples/source2.png")?;
+    // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
     // upscale
-    let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
     let source_img_mat: cv::core::Mat = source_img.to_luma8().try_into_cv()?;
-    let source_img_mat2: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
+    let source_img_mat2: cv::core::Mat = source_img.to_rgb8().try_into_cv()?;
 
     let up_img = image::open("./examples/up.png")?;
     let down_img = image::open("./examples/down.png")?;
@@ -23,6 +23,8 @@ fn main() -> Result<()> {
     let left_img_mat: cv::core::Mat = left_img.to_luma8().try_into_cv()?;
 
     println!("source_img_mat: {:?}", source_img_mat);
+
+    // println!("mat slice: {:?}", &source_img_mat.at_row::<u8>(0).unwrap());
 
     let start = std::time::Instant::now();
 
@@ -68,8 +70,8 @@ fn match_template(template: &cv::core::Mat, source: &cv::core::Mat) -> Result<cv
         source,
         template,
         &mut res,
-        cv::imgproc::TM_CCOEFF_NORMED,
-        &cv::core::no_array(),
+        cv::imgproc::TM_CCORR_NORMED,
+        template,
     )?;
     Ok(res)
 }
@@ -103,7 +105,7 @@ fn find_min_max_log(
         0,
     )?;
 
-    let i: RgbaImage = dst_img.try_into_cv()?;
+    let i: RgbImage = dst_img.try_into_cv()?;
     i.save(format!("./result{num}.png").as_str())?;
     // image::RgbaImage::try_from_cv(, format!("./result{num}.png").as_str())?;
 
