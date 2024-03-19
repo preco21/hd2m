@@ -7,9 +7,12 @@ use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
     let source_img = image::open("./examples/source2.png")?;
+
+    let source_img_mat =
+        cv::imgcodecs::imread("./examples/source2.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
     // upscale
     let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
-    let source_img_mat: cv::core::Mat = source_img.to_luma8().try_into_cv()?;
+    // let source_img_mat: cv::core::Mat = source_img.to_luma_alpha8().try_into_cv()?;
     let source_img_mat2: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
     let up_img = image::open("./examples/up.png")?;
@@ -17,19 +20,22 @@ fn main() -> Result<()> {
     let right_img = image::open("./examples/right.png")?;
     let left_img = image::open("./examples/left.png")?;
 
-    let up_img_mat: cv::core::Mat = up_img.to_luma8().try_into_cv()?;
-    let down_img_mat: cv::core::Mat = down_img.to_luma8().try_into_cv()?;
-    let right_img_mat: cv::core::Mat = right_img.to_luma8().try_into_cv()?;
-    let left_img_mat: cv::core::Mat = left_img.to_luma8().try_into_cv()?;
+    // let up_img_mat: cv::core::Mat = up_img.to_luma_alpha8().try_into_cv()?;
+    // let down_img_mat: cv::core::Mat = down_img.to_luma_alpha8().try_into_cv()?;
+    // let right_img_mat: cv::core::Mat = right_img.to_luma_alpha8().try_into_cv()?;
+    // let left_img_mat: cv::core::Mat = left_img.to_luma_alpha8().try_into_cv()?;
+
+    let up_img_mat = cv::imgcodecs::imread("./examples/up.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
+    let down_img_mat =
+        cv::imgcodecs::imread("./examples/down.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
+    let right_img_mat =
+        cv::imgcodecs::imread("./examples/right.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
+    let left_img_mat =
+        cv::imgcodecs::imread("./examples/left.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
 
     println!("source_img_mat: {:?}", source_img_mat);
 
     let start = std::time::Instant::now();
-
-    let mat_up = match_template(&up_img_mat, &source_img_mat)?;
-    let mat_down = match_template(&down_img_mat, &source_img_mat)?;
-    let mat_right = match_template(&right_img_mat, &source_img_mat)?;
-    let mat_left = match_template(&left_img_mat, &source_img_mat)?;
 
     let temp = match_template(&up_img_mat, &source_img_mat)?;
     find_min_max_log(&temp, &source_img_mat2, 1)?;
@@ -39,21 +45,6 @@ fn main() -> Result<()> {
     find_min_max_log(&temp, &source_img_mat2, 3)?;
     let temp = match_template(&left_img_mat, &source_img_mat)?;
     find_min_max_log(&temp, &source_img_mat2, 4)?;
-
-    let up_nd: ndarray::Array2<f32> = mat_up.try_into_cv()?;
-    let down_nd: ndarray::Array2<f32> = mat_down.try_into_cv()?;
-    let right_nd: ndarray::Array2<f32> = mat_right.try_into_cv()?;
-    let left_nd: ndarray::Array2<f32> = mat_left.try_into_cv()?;
-
-    // let res = hd2m_search::find_direction_commands(
-    //     &up_nd.view(),
-    //     &down_nd.view(),
-    //     &right_nd.view(),
-    //     &left_nd.view(),
-    //     Some(0.54),
-    //     None,
-    // )?;
-    // println!("res: {:?}", res);
 
     println!("Elapsed: {:?}", start.elapsed());
 
