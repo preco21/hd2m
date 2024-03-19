@@ -7,7 +7,7 @@ use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
     let source_img = image::open("./examples/source2.png")?;
-    let source_img_mat: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
+    let source_img_mat: cv::core::Mat = source_img.to_luma_alpha8().try_into_cv()?;
     let source_img_mat2: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
     let up_img = image::open("./examples/up.png")?;
@@ -15,10 +15,10 @@ fn main() -> Result<()> {
     let right_img = image::open("./examples/right.png")?;
     let left_img = image::open("./examples/left.png")?;
 
-    let up_img_mat: cv::core::Mat = up_img.to_rgba8().try_into_cv()?;
-    let down_img_mat: cv::core::Mat = down_img.to_rgba8().try_into_cv()?;
-    let right_img_mat: cv::core::Mat = right_img.to_rgba8().try_into_cv()?;
-    let left_img_mat: cv::core::Mat = left_img.to_rgba8().try_into_cv()?;
+    let up_img_mat: cv::core::Mat = up_img.to_luma_alpha8().try_into_cv()?;
+    let down_img_mat: cv::core::Mat = down_img.to_luma_alpha8().try_into_cv()?;
+    let right_img_mat: cv::core::Mat = right_img.to_luma_alpha8().try_into_cv()?;
+    let left_img_mat: cv::core::Mat = left_img.to_luma_alpha8().try_into_cv()?;
 
     println!("source_img_mat: {:?}", source_img_mat);
 
