@@ -11,6 +11,7 @@ pub enum Direction {
     Left,
 }
 
+// FIXME: Pack up with the points
 pub fn find_direction_commands(
     up: &nd::ArrayView2<f32>,
     right: &nd::ArrayView2<f32>,
