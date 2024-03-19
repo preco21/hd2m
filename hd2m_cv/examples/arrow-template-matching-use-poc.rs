@@ -7,7 +7,7 @@ use ndarray::*;
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
-    let source_img = image::open("./examples/source2.png")?;
+    let source_img = image::open("./examples/source3.png")?;
     // upscale
     // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
     let source_img_mat: cv::core::Mat = source_img.to_luma8().try_into_cv()?;
@@ -74,10 +74,10 @@ fn main() -> Result<()> {
         &right_nd.view(),
         &down_nd.view(),
         &left_nd.view(),
-        Some(0.989),
+        Some(0.993),
         None,
     )?;
-    println!("res: {:?}", res.get(0));
+    println!("res: {:?}", res);
 
     println!("Elapsed: {:?}", start.elapsed());
 
