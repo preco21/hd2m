@@ -1,273 +1,337 @@
-// use crate::MaybeDirectionDescriptor;
-// use ndarray::{self as nd, parallel::prelude::*};
+use ndarray::{self as nd, parallel::prelude::*};
 
-// pub type MaybeDirectionDescriptor = Option<DirectionDescriptor>;
+pub fn find_direction_commands(
+    up: &nd::ArrayView2<f32>,
+    right: &nd::ArrayView2<f32>,
+    down: &nd::ArrayView2<f32>,
+    left: &nd::ArrayView2<f32>,
+    threshold: Option<f32>,
+    search_chunk_size: Option<usize>,
+) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
+    let threshold = threshold.unwrap_or(0.9);
+    let search_chunk_size = search_chunk_size.unwrap_or(3);
+    let dir_buf = raw_mats_to_direction_buffer(up, right, down, left, threshold)?;
+    let commands = collect_direction_commands(&dir_buf.view(), search_chunk_size)?;
+    Ok(commands)
+}
 
-// #[derive(Debug, Clone, Copy)]
-// pub struct DirectionDescriptor {
-//     pub direction: Direction,
-//     pub position: Point,
-//     pub score: f32,
-// }
+pub fn raw_mats_to_direction_buffer(
+    up: &nd::ArrayView2<f32>,
+    right: &nd::ArrayView2<f32>,
+    down: &nd::ArrayView2<f32>,
+    left: &nd::ArrayView2<f32>,
+    threshold: f32,
+) -> anyhow::Result<nd::Array2<IntermediaryDirection>> {
+    if up.shape() != right.shape() || up.shape() != down.shape() || up.shape() != left.shape() {
+        return Err(anyhow::anyhow!("All mats must have the same shape"));
+    }
 
-// #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
-// pub enum Direction {
-//     Up,
-//     Right,
-//     Down,
-//     Left,
-// }
+    let mut buf: nd::Array2<IntermediaryDirection> =
+        nd::Array2::from_elem(up.dim(), Default::default());
+    nd::Zip::from(&mut buf)
+        .and(up)
+        .and(right)
+        .and(down)
+        .and(left)
+        .par_for_each(|buf, &up, &right, &down, &left| {
+            let max = up.max(right).max(down).max(left);
+            *buf = if max < threshold {
+                None
+            } else {
+                let direction = if max == up {
+                    Direction::Up
+                } else if max == right {
+                    Direction::Right
+                } else if max == down {
+                    Direction::Down
+                } else {
+                    Direction::Left
+                };
+                Some((direction, max))
+            }
+        });
 
-// #[derive(Debug, Clone, Copy)]
-// pub struct Point {
-//     pub x: usize,
-//     pub y: usize,
-// }
+    Ok(buf)
+}
 
-// // FIXME: Pack up with the points
-// pub fn find_direction_commands(
-//     up: &nd::ArrayView2<f32>,
-//     right: &nd::ArrayView2<f32>,
-//     down: &nd::ArrayView2<f32>,
-//     left: &nd::ArrayView2<f32>,
-//     threshold: Option<f32>,
-//     search_chunk_size: Option<usize>,
-// ) -> anyhow::Result<Vec<Vec<MaybeDirectionDescriptor>>> {
-//     let threshold = threshold.unwrap_or(0.9);
-//     let search_chunk_size = search_chunk_size.unwrap_or(10);
-//     let directions = raw_mats_to_direction_buffer(up, right, down, left, threshold)?;
-//     let commands = collect_direction_commands(&directions.view(), search_chunk_size)?;
-//     Ok(commands)
-// }
+pub fn collect_direction_commands(
+    buf: &nd::ArrayView2<IntermediaryDirection>,
+    search_chunk_size: usize,
+) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
+    // Iterate over the windowed columns and collect the non-None directions.
+    let chunks: Vec<Vec<DirectionDescriptor>> = buf
+        .axis_windows(nd::Axis(0), search_chunk_size)
+        .into_iter()
+        .enumerate()
+        .map(|(y, rows)| {
+            /*
+             * Here we have a chunk of the matrix, and we need to find the first non-None value in each column.
+             *
+             * Imagine we have this matrix for one of the windows:
+             * ```
+             * [0 0 0 0 0] |
+             * [1 0 1 0 0] |
+             * [0 1 1 1 0] |
+             * [0 1 1 0 0] v
+             * ```
+             *
+             * This will be iterated as:
+             * ```
+             * -------->
+             * [0 1 0 0]
+             * [0 0 1 1]
+             * [0 1 1 1]
+             * [0 0 1 0]
+             * [0 0 0 0]
+             * ```
+             *
+             * Notice each column is now a row, and we can find the first non-None value in each row.
+             * In which you can think of a transposed version of the original matrix.
+             *
+             * Also, since we are running very large number of iterations, we need to parallelize this.
+             */
+            rows.axis_iter(nd::Axis(1))
+                .into_par_iter()
+                .enumerate()
+                .map(|(x, col)| {
+                    col.into_par_iter()
+                        .find_first(|&&el| el != None)
+                        .and_then(|&dir| {
+                            dir.and_then(|(direction, confidence)| {
+                                Some(DirectionDescriptor {
+                                    direction,
+                                    position: Point { x, y },
+                                    confidence,
+                                })
+                            })
+                        })
+                })
+                .filter_map(|dir| dir)
+                .collect()
+        })
+        .collect();
 
-// pub fn raw_mats_to_direction_buffer(
-//     up: &nd::ArrayView2<f32>,
-//     right: &nd::ArrayView2<f32>,
-//     down: &nd::ArrayView2<f32>,
-//     left: &nd::ArrayView2<f32>,
-//     threshold: f32,
-// ) -> anyhow::Result<nd::Array2<Direction>> {
-//     if up.shape() != right.shape() || up.shape() != down.shape() || up.shape() != left.shape() {
-//         return Err(anyhow::anyhow!("All mats must have the same shape"));
-//     }
+    let histogram: Vec<usize> = chunks
+        .clone()
+        .into_par_iter()
+        .map(|rows| rows.len())
+        .collect();
+    let mut peaks: Vec<usize> = Vec::new();
+    for (i, &el) in histogram.iter().enumerate() {
+        let previous_bar = if i > 0 { histogram[i - 1] } else { 0 };
+        let next_bar = if i < histogram.len() - 1 {
+            histogram[i + 1]
+        } else {
+            0
+        };
+        if el >= previous_bar && el > next_bar {
+            peaks.push(i);
+        }
+    }
 
-//     let mut buf: nd::Array2<Direction> = nd::Array2::from_elem(up.dim(), Default::default());
-//     nd::Zip::from(&mut buf)
-//         .and(up)
-//         .and(right)
-//         .and(down)
-//         .and(left)
-//         .par_for_each(|buf, &up, &right, &down, &left| {
-//             let max = up.max(right).max(down).max(left);
-//             *buf = if max < threshold {
-//                 Direction::None
-//             } else if max == up {
-//                 Direction::Up
-//             } else if max == right {
-//                 Direction::Right
-//             } else if max == down {
-//                 Direction::Down
-//             } else {
-//                 Direction::Left
-//             }
-//         });
+    let descriptors: Vec<Vec<DirectionDescriptor>> = peaks
+        .iter()
+        .filter_map(|&i| chunks.get(i))
+        .cloned()
+        .collect();
 
-//     Ok(buf)
-// }
+    Ok(descriptors)
+}
 
-// pub fn collect_direction_commands(
-//     buf: &nd::ArrayView2<Direction>,
-//     search_chunk_size: usize,
-// ) -> anyhow::Result<Vec<Vec<Direction>>> {
-//     // Iterate over the windowed columns and collect the non-None directions.
-//     let chunks: Vec<Vec<Direction>> = buf
-//         .axis_windows(nd::Axis(0), search_chunk_size)
-//         .into_iter()
-//         .map(|rows| {
-//             /*
-//              * Here we have a chunk of the matrix, and we need to find the first non-None value in each column.
-//              *
-//              * Imagine we have this matrix for one of the windows:
-//              * ```
-//              * [0 0 0 0 0]
-//              * [1 0 1 0 0]
-//              * [0 1 1 1 0]
-//              * [0 1 1 0 0]
-//              * ```
-//              *
-//              * This will be iterated as:
-//              * ```
-//              * [0 1 0 0]
-//              * [0 0 1 1]
-//              * [0 1 1 1]
-//              * [0 0 1 0]
-//              * [0 0 0 0]
-//              * ```
-//              *
-//              * Notice each column is now a row, and we can find the first non-None value in each row.
-//              * In which you can think of a transposed version of the original matrix.
-//              *
-//              * Also, since we are running very large number of iterations, we need to parallelize this.
-//              */
-//             rows.axis_iter(nd::Axis(1))
-//                 .into_par_iter()
-//                 .map(|col| {
-//                     col.into_par_iter()
-//                         .find_first(|&&el| el != Direction::None)
-//                         .copied()
-//                         .unwrap_or(Direction::None)
-//                 })
-//                 .filter(|&dir| dir != Direction::None)
-//                 .collect()
-//         })
-//         .collect();
+// Temporarily stores direction and f32 confidence.
+pub type IntermediaryDirection = Option<(Direction, f32)>;
 
-//     let histogram: Vec<usize> = chunks
-//         .clone()
-//         .into_par_iter()
-//         .map(|rows| rows.len())
-//         .collect();
-//     let mut peaks: Vec<usize> = Vec::new();
-//     for (i, &el) in histogram.iter().enumerate() {
-//         let previous_bar = if i > 0 { histogram[i - 1] } else { 0 };
-//         let next_bar = if i < histogram.len() - 1 {
-//             histogram[i + 1]
-//         } else {
-//             0
-//         };
-//         if el >= previous_bar && el > next_bar {
-//             peaks.push(i);
-//         }
-//     }
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DirectionDescriptor {
+    pub direction: Direction,
+    pub position: Point,
+    pub confidence: f32,
+}
 
-//     let commands: Vec<Vec<Direction>> = peaks
-//         .iter()
-//         .filter_map(|&i| chunks.get(i))
-//         .cloned()
-//         .collect();
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Direction {
+    Up,
+    Right,
+    Down,
+    Left,
+}
 
-//     Ok(commands)
-// }
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Point {
+    pub x: usize,
+    pub y: usize,
+}
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn test_find_direction_commands() -> anyhow::Result<()> {
-//         let now = std::time::Instant::now();
-//         let arr = nd::Array2::<f32>::from_shape_vec(
-//             (15, 9),
-//             vec![
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//             ],
-//         )?;
-//         let arr2 = nd::Array2::<f32>::from_shape_vec(
-//             (15, 9),
-//             vec![
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, //
-//                 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//             ],
-//         )?;
-//         let arr3 = nd::Array2::<f32>::from_shape_vec(
-//             (15, 9),
-//             vec![
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, //
-//                 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//             ],
-//         )?;
-//         let arr4 = nd::Array2::<f32>::from_shape_vec(
-//             (15, 9),
-//             vec![
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, //
-//                 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//                 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-//             ],
-//         )?;
+    #[test]
+    fn test_find_direction_commands() -> anyhow::Result<()> {
+        let now = std::time::Instant::now();
+        let arr = nd::Array2::<f32>::from_shape_vec(
+            (15, 9),
+            vec![
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+            ],
+        )?;
+        let arr2 = nd::Array2::<f32>::from_shape_vec(
+            (15, 9),
+            vec![
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, //
+                0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+            ],
+        )?;
+        let arr3 = nd::Array2::<f32>::from_shape_vec(
+            (15, 9),
+            vec![
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, //
+                0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+            ],
+        )?;
+        let arr4 = nd::Array2::<f32>::from_shape_vec(
+            (15, 9),
+            vec![
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, //
+                0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+                0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
+            ],
+        )?;
 
-//         let buf = find_direction_commands(
-//             &arr.view(),
-//             &arr2.view(),
-//             &arr3.view(),
-//             &arr4.view(),
-//             None,
-//             None,
-//         )?;
-//         assert_eq!(
-//             buf,
-//             vec![
-//                 vec![
-//                     Direction::Up,
-//                     Direction::Right,
-//                     Direction::Right,
-//                     Direction::Right
-//                 ],
-//                 vec![
-//                     Direction::Right,
-//                     Direction::Up,
-//                     Direction::Up,
-//                     Direction::Up,
-//                     Direction::Right,
-//                     Direction::Down
-//                 ],
-//                 vec![Direction::Left, Direction::Up]
-//             ]
-//         );
+        let buf = find_direction_commands(
+            &arr.view(),
+            &arr2.view(),
+            &arr3.view(),
+            &arr4.view(),
+            None,
+            None,
+        )?;
+        assert_eq!(
+            buf,
+            vec![
+                vec![
+                    DirectionDescriptor {
+                        direction: Direction::Up,
+                        position: Point { x: 3, y: 2 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Right,
+                        position: Point { x: 4, y: 2 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Right,
+                        position: Point { x: 5, y: 2 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Right,
+                        position: Point { x: 6, y: 2 },
+                        confidence: 1.0
+                    }
+                ],
+                vec![
+                    DirectionDescriptor {
+                        direction: Direction::Right,
+                        position: Point { x: 1, y: 6 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Up,
+                        position: Point { x: 2, y: 6 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Up,
+                        position: Point { x: 5, y: 6 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Up,
+                        position: Point { x: 6, y: 6 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Right,
+                        position: Point { x: 7, y: 6 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Down,
+                        position: Point { x: 8, y: 6 },
+                        confidence: 1.0
+                    }
+                ],
+                vec![
+                    DirectionDescriptor {
+                        direction: Direction::Left,
+                        position: Point { x: 3, y: 12 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Up,
+                        position: Point { x: 6, y: 12 },
+                        confidence: 1.0
+                    }
+                ]
+            ]
+        );
 
-//         println!("Elapsed: {:?}", now.elapsed());
+        println!("Elapsed: {:?}", now.elapsed());
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

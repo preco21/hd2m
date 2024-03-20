@@ -46,15 +46,15 @@ fn main() -> Result<()> {
     report_min_max_log(&right_match_result, &output_source_mat, 3)?;
     report_min_max_log(&left_match_result, &output_source_mat, 4)?;
 
-    // let res = hd2m_search::find_direction_commands(
-    //     &up_match_result.view(),
-    //     &down_match_result.view(),
-    //     &right_match_result.view(),
-    //     &left_match_result.view(),
-    //     Some(0.993),
-    //     // Some(0.993),
-    //     None,
-    // )?;
+    let res = find_direction_commands(
+        &up_match_result.view(),
+        &down_match_result.view(),
+        &right_match_result.view(),
+        &left_match_result.view(),
+        Some(0.993),
+        // Some(0.993),
+        None,
+    )?;
 
     // println!("Res: {:?}", res);
     println!();
