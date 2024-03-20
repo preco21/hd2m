@@ -1,4 +1,11 @@
-pub mod cv_convert;
+mod cv_convert;
+pub use cv_convert::*;
 
-#[cfg(feature = "windows-capture")]
-pub mod screen_capture;
+mod template;
+pub use template::*;
+
+mod search;
+pub use search::*;
+
+mod convert;
+pub use convert::*;

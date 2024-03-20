@@ -1,105 +1,69 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use hd2m_cv::cv_convert::{IntoCv, TryFromCv, TryIntoCv};
+use hd2m_cv::{
+    convert_image_to_mat_grayscale, convert_tm_mat_to_array2, match_template_with_mask, TryIntoCv,
+};
 use image::RgbaImage;
 use ndarray::*;
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
+    let start = std::time::Instant::now();
+
     let source_img = image::open("./examples/source3.png")?;
-    // upscale
+    let source_mat = convert_image_to_mat_grayscale(&source_img)?;
     // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
-    let source_img_mat: cv::core::Mat = source_img.to_luma8().try_into_cv()?;
-    let source_img_mat2: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
+    let output_source_mat: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
     let up_img = image::open("./examples/up.png")?;
+    let up_mat = convert_image_to_mat_grayscale(&up_img)?;
+    let up_match_result = match_template_with_mask(&source_mat, &up_mat, None)?;
+    let up_tm_array = convert_tm_mat_to_array2(&up_match_result)?;
+
     let down_img = image::open("./examples/down.png")?;
+    let down_mat = convert_image_to_mat_grayscale(&down_img)?;
+    let down_match_result = match_template_with_mask(&source_mat, &down_mat, None)?;
+    let down_tm_array = convert_tm_mat_to_array2(&down_match_result)?;
+
     let right_img = image::open("./examples/right.png")?;
+    let right_mat = convert_image_to_mat_grayscale(&right_img)?;
+    let right_match_result = match_template_with_mask(&source_mat, &right_mat, None)?;
+    let right_tm_array = convert_tm_mat_to_array2(&right_match_result)?;
+
     let left_img = image::open("./examples/left.png")?;
-
-    let up_img_mat: cv::core::Mat = up_img.to_luma8().try_into_cv()?;
-    let down_img_mat: cv::core::Mat = down_img.to_luma8().try_into_cv()?;
-    let right_img_mat: cv::core::Mat = right_img.to_luma8().try_into_cv()?;
-    let left_img_mat: cv::core::Mat = left_img.to_luma8().try_into_cv()?;
-
-    println!("source_img_mat: {:?}", source_img_mat);
+    let left_mat = convert_image_to_mat_grayscale(&left_img)?;
+    let left_match_result = match_template_with_mask(&source_mat, &left_mat, None)?;
+    let left_tm_array = convert_tm_mat_to_array2(&left_match_result)?;
 
     println!(
         "source image width/height: {:?}",
         (source_img.width(), source_img.height())
     );
 
-    let start = std::time::Instant::now();
+    report_min_max_log(&up_match_result, &output_source_mat, 1)?;
+    report_min_max_log(&down_match_result, &output_source_mat, 2)?;
+    report_min_max_log(&right_match_result, &output_source_mat, 3)?;
+    report_min_max_log(&left_match_result, &output_source_mat, 4)?;
 
-    let mat_up = match_template(&up_img_mat, &source_img_mat)?;
-    find_min_max_log(&mat_up, &source_img_mat2, 1)?;
-    let mat_down = match_template(&down_img_mat, &source_img_mat)?;
-    find_min_max_log(&mat_down, &source_img_mat2, 2)?;
-    let mat_right = match_template(&right_img_mat, &source_img_mat)?;
-    find_min_max_log(&mat_right, &source_img_mat2, 3)?;
-    let mat_left = match_template(&left_img_mat, &source_img_mat)?;
-    find_min_max_log(&mat_left, &source_img_mat2, 4)?;
+    // let res = hd2m_search::find_direction_commands(
+    //     &up_match_result.view(),
+    //     &down_match_result.view(),
+    //     &right_match_result.view(),
+    //     &left_match_result.view(),
+    //     Some(0.993),
+    //     // Some(0.993),
+    //     None,
+    // )?;
 
-    // println!("up_mat: {:?}", mat_up);
-    // println!("up_mat: {:?}", mat_down);
-    // println!("up_mat: {:?}", mat_right);
-    // println!("up_mat: {:?}", mat_left);
-
-    let up_nd: Array3<f32> = mat_up.try_into_cv()?;
-    let up_nd = convert_array3_to_array2(&up_nd);
-
-    // let up_nd: ndarray::ArrayD<f32> = (&mat_up).try_into_cv()?;
-    // let up_nd: ndarray::Array2<f32> = up_nd.into_dimensionality::<Ix2>()?;
-
-    let down_nd: Array3<f32> = mat_down.try_into_cv()?;
-    let down_nd = convert_array3_to_array2(&down_nd);
-    // let down_nd: ndarray::ArrayD<f32> = (&mat_down).try_into_cv()?;
-    // let down_nd: ndarray::Array2<f32> = down_nd.into_dimensionality::<Ix2>()?;
-
-    let right_nd: Array3<f32> = mat_right.try_into_cv()?;
-    let right_nd = convert_array3_to_array2(&right_nd);
-    // let right_nd: ndarray::ArrayD<f32> = (&mat_right).try_into_cv()?;
-    // let right_nd: ndarray::Array2<f32> = right_nd.into_dimensionality::<Ix2>()?;
-
-    let left_nd: Array3<f32> = mat_left.try_into_cv()?;
-    let left_nd = convert_array3_to_array2(&left_nd);
-    // let left_nd: ndarray::ArrayD<f32> = (&mat_left).try_into_cv()?;
-    // let left_nd: ndarray::Array2<f32> = left_nd.into_dimensionality::<Ix2>()?;
-
-    // println!("up_nd: {:?}", up_nd);
-
-    let res = hd2m_search::find_direction_commands(
-        &up_nd.view(),
-        &right_nd.view(),
-        &down_nd.view(),
-        &left_nd.view(),
-        Some(0.993),
-        None,
-    )?;
-    println!("res: {:?}", res);
-
+    // println!("Res: {:?}", res);
+    println!();
     println!("Elapsed: {:?}", start.elapsed());
-
-    // cv::imgcodecs::imwrite("./result.png", &res, &cv::core::Vector::new())?;
 
     Ok(())
 }
 
-// 나중에 이것 기반으로 옮기기
-fn match_template(template: &cv::core::Mat, source: &cv::core::Mat) -> Result<cv::core::Mat> {
-    let mut res = cv::core::Mat::default();
-    cv::imgproc::match_template(
-        source,
-        template,
-        &mut res,
-        cv::imgproc::TM_CCORR_NORMED,
-        template,
-    )?;
-    Ok(res)
-}
-
-fn find_min_max_log(
+fn report_min_max_log(
     mat: &cv::core::Mat,
     source: &cv::core::Mat,
     num: usize,
@@ -128,69 +92,13 @@ fn find_min_max_log(
         0,
     )?;
 
-    let i: RgbaImage = dst_img.try_into_cv()?;
-    i.save(format!("./result{num}.png").as_str())?;
-    // image::RgbaImage::try_from_cv(, format!("./result{num}.png").as_str())?;
-
-    // cv::imgcodecs::imwrite(
-    //     format!("./result{num}.png").as_str(),
-    //     &source,
-    //     &cv::core::Vector::new(),
-    // )?;
-
     println!(
         "MinMaxLoc vals: min={:?}, max={:?}, min_loc={:?}, max_loc={:?}",
         min_val, max_val, min_loc, max_loc
     );
 
+    let i: RgbaImage = dst_img.try_into_cv()?;
+    i.save(format!("./result{num}.png").as_str())?;
+
     Ok((min_val, max_val, min_loc, max_loc))
-}
-
-// $env:path+=";C:\Users\preco\vcpkg\installed\x64-windows\tools\llvm"
-// $env:OPENCV_INCLUDE_PATHS = "C:\Users\preco\vcpkg\installed\x64-windows\include"
-// $env:OPENCV_LINK_PATHS = "C:\Users\preco\vcpkg\installed\x64-windows\lib"
-// $env:OPENCV_LINK_LIBS="opencv_core4,opencv_imgcodecs4,opencv_imgproc4,opencv_bioinspired4,opencv_dnn4,opencv_stitching4,zlib"
-// $env:OPENCV_MSVC_CRT="static"
-// $env:VCPKGRS_DYNAMIC=0
-// $env:VCPKG_LIBRARY_LINKAGE=static
-
-// $env:OPENCV_LINK_LIBS="opencv_core481,opencv_videoio481,opencv_imgcodecs481,opencv_imgproc481,ippiw,ittnotify,ippicvmt,zlib"
-// $env:OPENCV_LINK_PATHS="D:/opt/opencv/x64/vc17/staticlib"
-// $env:OPENCV_INCLUDE_PATHS="D:/opt/opencv/include"
-// $env:OPENCV_MSVC_CRT="static"
-
-// VCPKG를 STATIC LINK로 설치해야 했음
-
-// https://github.com/spoorn/media-to-ascii/blob/a01017fbb3dc883a89b0a1aff237c69b072542b2/.github/workflows/build.yml
-
-// 여기에서 필요한 기능을 가진 STATIC LINK 라이브러리 전부 가져와야 함
-// C:\Users\preco\vcpkg\installed\x64-windows\lib
-
-// fn try_mat_to_array2(mat: &cv::core::Mat) -> Result<ndarray::Array2<f32>> {
-//     if !mat.is_continuous() {
-//         return Err(anyhow::anyhow!("Mat is not continuous"));
-//     }
-//     let bytes = mat.data_bytes()?;
-//     let size = mat.size()?;
-//     let a =
-//         ndarray::ArrayView2::<f32>::from_shape((size.height as usize, size.width as usize), bytes)?;
-//     Ok(a.to_owned())
-// }
-
-fn convert_array3_to_array2<T>(array3: &Array3<T>) -> Array2<T>
-where
-    T: Clone,
-{
-    // Get the dimensions of the input array
-    let (depth, height, width) = array3.dim();
-
-    // Slice the array to merge the first element of the third dimension into the second dimension
-    let merged_array = array3.slice(s![1.., .., ..]).reversed_axes();
-
-    // Reshape the merged array to a 2-dimensional array
-    let array2 = merged_array
-        .into_shape((height, (depth - 1) * width))
-        .expect("Failed to reshape merged array");
-
-    array2.to_owned()
 }
