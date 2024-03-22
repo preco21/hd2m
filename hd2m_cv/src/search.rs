@@ -2,8 +2,8 @@ use ndarray::{self as nd, parallel::prelude::*};
 
 pub fn find_direction_commands(
     up: &nd::ArrayView2<f32>,
-    right: &nd::ArrayView2<f32>,
     down: &nd::ArrayView2<f32>,
+    right: &nd::ArrayView2<f32>,
     left: &nd::ArrayView2<f32>,
     threshold: Option<f32>,
     search_chunk_size: Option<usize>,
@@ -17,8 +17,8 @@ pub fn find_direction_commands(
 
 pub fn raw_mats_to_direction_buffer(
     up: &nd::ArrayView2<f32>,
-    right: &nd::ArrayView2<f32>,
     down: &nd::ArrayView2<f32>,
+    right: &nd::ArrayView2<f32>,
     left: &nd::ArrayView2<f32>,
     threshold: f32,
 ) -> anyhow::Result<nd::Array2<IntermediaryDirection>> {
@@ -90,11 +90,15 @@ pub fn collect_direction_commands(
              *
              * Also, since we are running very large number of iterations, we need to parallelize this.
              */
+            let mut seen_up = 0usize;
+            let mut seen_right = 0usize;
+            let mut seen_down = 0usize;
+            let mut seen_left = 0usize;
             rows.axis_iter(nd::Axis(1))
                 // .into_par_iter()
                 .enumerate()
                 .map(|(x, col)| {
-                    println!("y, col: {:?} {:?}", y, col);
+                    // println!("y, col: {:?} {:?}", y, col);
                     col.iter()
                         // FIXME: To use par iter
                         .enumerate()
@@ -102,12 +106,38 @@ pub fn collect_direction_commands(
                         .find(|&(_, el)| el.is_some())
                         // .find_first(|&&el| el.is_some())
                         .and_then(|(k, dir)| {
-                            println!("found dir x y: {:?} {:?} {:?}", dir, x, y);
+                            println!("found dir x y: {:?} {:?} {:?}", dir, x, y + k);
                             dir.and_then(|(direction, confidence)| {
-                                println!("dir(x,y): {:?} {:?} {:?}", direction, x, y);
+                                println!("dir(x,y): {:?} {:?} {:?}", direction, x, y + k);
+                                match direction {
+                                    Direction::Up => {
+                                        if x != 0 && seen_up + 30 > x {
+                                            return None;
+                                        }
+                                        seen_up = x;
+                                    }
+                                    Direction::Right => {
+                                        if y != 0 && seen_right + 30 > y {
+                                            return None;
+                                        }
+                                        seen_right = y;
+                                    }
+                                    Direction::Down => {
+                                        if x != 0 && seen_down + 30 > x {
+                                            return None;
+                                        }
+                                        seen_down = x;
+                                    }
+                                    Direction::Left => {
+                                        if y != 0 && seen_left + 30 > y {
+                                            return None;
+                                        }
+                                        seen_left = y;
+                                    }
+                                }
                                 Some(DirectionDescriptor {
                                     direction,
-                                    position: Point { x: x + k, y },
+                                    position: Point { x: x, y: y + k },
                                     confidence,
                                 })
                             })
@@ -173,6 +203,7 @@ pub struct Point {
 mod tests {
     use super::*;
 
+    // FIXME: fix tests
     #[test]
     fn test_find_direction_commands() -> anyhow::Result<()> {
         let now = std::time::Instant::now();
@@ -205,7 +236,7 @@ mod tests {
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, //
                 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
@@ -225,7 +256,7 @@ mod tests {
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, //
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, //
                 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //

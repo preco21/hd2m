@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use anyhow::Result;
 use hd2m_cv::{
-    convert_image_to_mat_grayscale, convert_tm_mat_to_array2, match_template_with_mask, TryIntoCv,
+    convert_image_to_mat_grayscale, convert_tm_mat_to_array2, find_direction_commands,
+    match_template_with_mask, Direction, TryIntoCv,
 };
 use image::RgbaImage;
 use ndarray::*;
@@ -47,16 +48,46 @@ fn main() -> Result<()> {
     report_min_max_log(&left_match_result, &output_source_mat, 4)?;
 
     let res = find_direction_commands(
-        &up_match_result.view(),
-        &down_match_result.view(),
-        &right_match_result.view(),
-        &left_match_result.view(),
-        Some(0.993),
+        &up_tm_array.view(),
+        &down_tm_array.view(),
+        &right_tm_array.view(),
+        &left_tm_array.view(),
+        Some(0.985),
         // Some(0.993),
-        None,
+        Some(20),
     )?;
 
-    // println!("Res: {:?}", res);
+    let mut dst_img: Mat = source_img.try_into_cv()?;
+    for (i, row) in res.iter().enumerate() {
+        for im in row.iter() {
+            let color = match im.direction {
+                hd2m_cv::Direction::Up => cv::core::VecN([0., 255., 0., 255.]),
+                hd2m_cv::Direction::Down => cv::core::VecN([0., 0., 255., 255.]),
+                hd2m_cv::Direction::Right => cv::core::VecN([255., 0., 0., 255.]),
+                hd2m_cv::Direction::Left => cv::core::VecN([0., 255., 255., 255.]),
+            };
+            cv::imgproc::rectangle(
+                &mut dst_img,
+                cv::core::Rect::from_point_size(
+                    cv::core::Point::new(im.position.y as i32, im.position.x as i32),
+                    cv::core::Size::new(23, 23),
+                ),
+                color,
+                2,
+                cv::imgproc::LINE_8,
+                0,
+            )?;
+        }
+    }
+    let i: RgbaImage = dst_img.try_into_cv()?;
+    i.save(format!("./result.png").as_str())?;
+
+    println!(
+        "Res: {:?}",
+        res.iter()
+            .map(|e| e.iter().map(|e| e.direction).collect::<Vec<Direction>>())
+            .collect::<Vec<_>>()
+    );
     println!();
     println!("Elapsed: {:?}", start.elapsed());
 
