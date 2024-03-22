@@ -5,14 +5,14 @@ use hd2m_cv::{
     convert_image_to_mat_grayscale, convert_tm_mat_to_array2, find_direction_commands,
     match_template_with_mask, Direction, TryIntoCv,
 };
-use image::RgbaImage;
+use image::{RgbImage, RgbaImage};
 use ndarray::*;
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
     let start = std::time::Instant::now();
 
-    let source_img = image::open("./examples/source3.png")?;
+    let source_img = image::open("./examples/source2.png")?;
     let source_mat = convert_image_to_mat_grayscale(&source_img)?;
     // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
     let output_source_mat: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
@@ -42,18 +42,17 @@ fn main() -> Result<()> {
         (source_img.width(), source_img.height())
     );
 
-    report_min_max_log(&up_match_result, &output_source_mat, 1)?;
-    report_min_max_log(&down_match_result, &output_source_mat, 2)?;
-    report_min_max_log(&right_match_result, &output_source_mat, 3)?;
-    report_min_max_log(&left_match_result, &output_source_mat, 4)?;
+    // report_min_max_log(&up_match_result, &output_source_mat, 1)?;
+    // report_min_max_log(&down_match_result, &output_source_mat, 2)?;
+    // report_min_max_log(&right_match_result, &output_source_mat, 3)?;
+    // report_min_max_log(&left_match_result, &output_source_mat, 4)?;
 
     let res = find_direction_commands(
         &up_tm_array.view(),
         &down_tm_array.view(),
         &right_tm_array.view(),
         &left_tm_array.view(),
-        Some(0.985),
-        // Some(0.993),
+        Some(0.987),
         Some(30),
     )?;
 
@@ -79,7 +78,7 @@ fn main() -> Result<()> {
             )?;
         }
     }
-    let i: RgbaImage = dst_img.try_into_cv()?;
+    let i: RgbImage = dst_img.try_into_cv()?;
     i.save(format!("./result.png").as_str())?;
 
     println!(

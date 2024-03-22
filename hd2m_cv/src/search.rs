@@ -1,5 +1,6 @@
 use nd::IntoNdProducer;
 use ndarray::{self as nd, parallel::prelude::*};
+use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 
 pub fn find_direction_commands(
@@ -30,12 +31,13 @@ pub fn raw_mats_to_direction_buffer(
 
     let mut buf: nd::Array2<IntermediaryDirection> =
         nd::Array2::from_elem(up.dim(), Default::default());
-    nd::Zip::from(&mut buf)
+    // FIXME: 이게 나을지 아래 enumerate하는게 나을지... 알아보기
+    nd::Zip::indexed(&mut buf)
         .and(up)
         .and(right)
         .and(down)
         .and(left)
-        .par_for_each(|buf, &up, &down, &right, &left| {
+        .par_for_each(|i, buf, &up, &down, &right, &left| {
             let max = up.max(down).max(right).max(left);
             *buf = if max < threshold {
                 None
@@ -104,13 +106,13 @@ pub fn collect_direction_commands(
                 .enumerate()
                 .map(|(x, col)| {
                     col.iter()
+                        // .collect::<Vec<_>>()
                         // .into_par_iter()
                         .enumerate()
-                        // FIXME: To use par iter
-                        // .enumerate()
+                        // FIXME: vvvv 이걸로 대체하기
                         // .find_map_first(predicate)
                         .find(|&(_, el)| el.is_some())
-                        // .find_first(|&&el| el.is_some())
+                        // .find_first(|(_, &el)| el.is_some())
                         .and_then(|(k, dir)| {
                             dir.and_then(|(direction, confidence)| {
                                 match direction {
