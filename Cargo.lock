@@ -1187,6 +1187,7 @@ dependencies = [
  "image",
  "ndarray",
  "opencv",
+ "rayon",
  "strum",
 ]
 

@@ -1,4 +1,6 @@
+use nd::IntoNdProducer;
 use ndarray::{self as nd, parallel::prelude::*};
+use rayon::prelude::*;
 
 pub fn find_direction_commands(
     up: &nd::ArrayView2<f32>,
@@ -63,6 +65,8 @@ pub fn collect_direction_commands(
         .axis_windows(nd::Axis(1), search_chunk_size)
         .into_iter()
         .enumerate()
+        .collect::<Vec<_>>()
+        .par_iter()
         .map(|(y, rows)| {
             /*
              * Here we have a chunk of the matrix, and we need to find the first non-None value in each column.
@@ -94,19 +98,20 @@ pub fn collect_direction_commands(
             let mut seen_right = 0usize;
             let mut seen_down = 0usize;
             let mut seen_left = 0usize;
+            // FIXME: ^^ 다 처리한 후 sanitize
             rows.axis_iter(nd::Axis(0))
                 // .into_par_iter()
                 .enumerate()
                 .map(|(x, col)| {
-                    // println!("y, col: {:?} {:?}", y, col);
                     col.iter()
-                        // FIXME: To use par iter
+                        // .into_par_iter()
                         .enumerate()
+                        // FIXME: To use par iter
+                        // .enumerate()
                         // .find_map_first(predicate)
                         .find(|&(_, el)| el.is_some())
                         // .find_first(|&&el| el.is_some())
                         .and_then(|(k, dir)| {
-                            // println!("found dir x y: {:?} {:?} {:?}", dir, x, y + k);
                             dir.and_then(|(direction, confidence)| {
                                 match direction {
                                     Direction::Up => {
@@ -134,8 +139,6 @@ pub fn collect_direction_commands(
                                         seen_left = x;
                                     }
                                 }
-                                println!("dir, x, y: {:?} {:?} {:?}", direction, x, y + k);
-
                                 Some(DirectionDescriptor {
                                     direction,
                                     position: Point { x, y: y + k },
