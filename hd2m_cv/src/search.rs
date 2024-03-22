@@ -33,8 +33,8 @@ pub fn raw_mats_to_direction_buffer(
         .and(right)
         .and(down)
         .and(left)
-        .par_for_each(|buf, &up, &right, &down, &left| {
-            let max = up.max(right).max(down).max(left);
+        .par_for_each(|buf, &up, &down, &right, &left| {
+            let max = up.max(down).max(right).max(left);
             *buf = if max < threshold {
                 None
             } else {
@@ -60,7 +60,7 @@ pub fn collect_direction_commands(
 ) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
     // Iterate over the windowed columns and collect the non-None directions.
     let chunks: Vec<Vec<DirectionDescriptor>> = buf
-        .axis_windows(nd::Axis(0), search_chunk_size)
+        .axis_windows(nd::Axis(1), search_chunk_size)
         .into_iter()
         .enumerate()
         .map(|(y, rows)| {
@@ -94,7 +94,7 @@ pub fn collect_direction_commands(
             let mut seen_right = 0usize;
             let mut seen_down = 0usize;
             let mut seen_left = 0usize;
-            rows.axis_iter(nd::Axis(1))
+            rows.axis_iter(nd::Axis(0))
                 // .into_par_iter()
                 .enumerate()
                 .map(|(x, col)| {
@@ -106,38 +106,39 @@ pub fn collect_direction_commands(
                         .find(|&(_, el)| el.is_some())
                         // .find_first(|&&el| el.is_some())
                         .and_then(|(k, dir)| {
-                            println!("found dir x y: {:?} {:?} {:?}", dir, x, y + k);
+                            // println!("found dir x y: {:?} {:?} {:?}", dir, x, y + k);
                             dir.and_then(|(direction, confidence)| {
-                                println!("dir(x,y): {:?} {:?} {:?}", direction, x, y + k);
                                 match direction {
                                     Direction::Up => {
-                                        if x != 0 && seen_up + 30 > x {
+                                        if x != 0 && seen_up + 20 > x {
                                             return None;
                                         }
                                         seen_up = x;
                                     }
                                     Direction::Right => {
-                                        if y != 0 && seen_right + 30 > y {
+                                        if x != 0 && seen_right + 20 > x {
                                             return None;
                                         }
-                                        seen_right = y;
+                                        seen_right = x;
                                     }
                                     Direction::Down => {
-                                        if x != 0 && seen_down + 30 > x {
+                                        if x != 0 && seen_down + 20 > x {
                                             return None;
                                         }
                                         seen_down = x;
                                     }
                                     Direction::Left => {
-                                        if y != 0 && seen_left + 30 > y {
+                                        if x != 0 && seen_left + 20 > x {
                                             return None;
                                         }
-                                        seen_left = y;
+                                        seen_left = x;
                                     }
                                 }
+                                println!("dir, x, y: {:?} {:?} {:?}", direction, x, y + k);
+
                                 Some(DirectionDescriptor {
                                     direction,
-                                    position: Point { x: x, y: y + k },
+                                    position: Point { x, y: y + k },
                                     confidence,
                                 })
                             })

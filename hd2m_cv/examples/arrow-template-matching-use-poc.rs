@@ -54,7 +54,7 @@ fn main() -> Result<()> {
         &left_tm_array.view(),
         Some(0.985),
         // Some(0.993),
-        Some(20),
+        Some(30),
     )?;
 
     let mut dst_img: Mat = source_img.try_into_cv()?;
@@ -69,7 +69,7 @@ fn main() -> Result<()> {
             cv::imgproc::rectangle(
                 &mut dst_img,
                 cv::core::Rect::from_point_size(
-                    cv::core::Point::new(im.position.y as i32, im.position.x as i32),
+                    cv::core::Point::new(im.position.x as i32, im.position.y as i32),
                     cv::core::Size::new(23, 23),
                 ),
                 color,
