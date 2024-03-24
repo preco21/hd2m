@@ -10,11 +10,9 @@ use ndarray::*;
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
-    let start = std::time::Instant::now();
-
-    let source_img = image::open("./examples/source2.png")?;
-    let source_mat = convert_image_to_mat_grayscale(&source_img)?;
+    let source_img = image::open("./examples/source3.png")?;
     // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
+    let source_mat = convert_image_to_mat_grayscale(&source_img)?;
     let output_source_mat: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
     let up_img = image::open("./examples/up.png")?;
@@ -47,6 +45,7 @@ fn main() -> Result<()> {
     // report_min_max_log(&right_match_result, &output_source_mat, 3)?;
     // report_min_max_log(&left_match_result, &output_source_mat, 4)?;
 
+    let start = std::time::Instant::now();
     let res = find_direction_commands(
         &up_tm_array.view(),
         &down_tm_array.view(),
@@ -78,7 +77,7 @@ fn main() -> Result<()> {
             )?;
         }
     }
-    let i: RgbImage = dst_img.try_into_cv()?;
+    let i: RgbaImage = dst_img.try_into_cv()?;
     i.save(format!("./result.png").as_str())?;
 
     println!(
