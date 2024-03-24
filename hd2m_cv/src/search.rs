@@ -103,6 +103,7 @@ pub fn collect_direction_commands(
             // FIXME: ^^ 다 처리한 후 sanitize
             rows.axis_iter(nd::Axis(0))
                 // .into_par_iter()
+                // 굳이 par iter해도 이점이 없다
                 .enumerate()
                 .map(|(x, col)| {
                     col.iter()
