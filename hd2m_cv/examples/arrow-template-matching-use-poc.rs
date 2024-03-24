@@ -53,6 +53,7 @@ fn main() -> Result<()> {
         &left_tm_array.view(),
         Some(0.987),
         Some(30),
+        Some(20.0),
     )?;
 
     let mut dst_img: Mat = source_img.try_into_cv()?;

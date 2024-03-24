@@ -1,7 +1,5 @@
-use nd::IntoNdProducer;
 use ndarray::{self as nd, parallel::prelude::*};
-use rayon::iter::ParallelBridge;
-use rayon::prelude::*;
+use std::collections::BTreeMap;
 
 pub fn find_direction_commands(
     up: &nd::ArrayView2<f32>,
@@ -10,11 +8,17 @@ pub fn find_direction_commands(
     left: &nd::ArrayView2<f32>,
     threshold: Option<f32>,
     search_chunk_size: Option<usize>,
+    discarding_distance_threshold: Option<f32>,
 ) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
     let threshold = threshold.unwrap_or(0.9);
     let search_chunk_size = search_chunk_size.unwrap_or(3);
+    let discarding_distance_threshold = discarding_distance_threshold.unwrap_or(30.0);
     let dir_buf = raw_mats_to_direction_buffer(up, right, down, left, threshold)?;
-    let commands = collect_direction_commands(&dir_buf.view(), search_chunk_size)?;
+    let commands = collect_direction_commands(
+        &dir_buf.view(),
+        search_chunk_size,
+        discarding_distance_threshold,
+    )?;
     Ok(commands)
 }
 
@@ -61,6 +65,7 @@ pub fn raw_mats_to_direction_buffer(
 pub fn collect_direction_commands(
     buf: &nd::ArrayView2<IntermediaryDirection>,
     search_chunk_size: usize,
+    discarding_distance_threshold: f32,
 ) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
     // Iterate over the windowed columns and collect the non-None directions.
     let chunks: Vec<Vec<DirectionDescriptor>> = buf
@@ -96,61 +101,38 @@ pub fn collect_direction_commands(
              *
              * Also, since we are running very large number of iterations, we need to parallelize this.
              */
-            let mut seen_up = 0usize;
-            let mut seen_right = 0usize;
-            let mut seen_down = 0usize;
-            let mut seen_left = 0usize;
-            // FIXME: ^^ 다 처리한 후 sanitize
+            let mut last_seen_points: BTreeMap<Direction, Point> = BTreeMap::new();
             rows.axis_iter(nd::Axis(0))
-                // .into_par_iter()
-                // 굳이 par iter해도 이점이 없다
                 .enumerate()
                 .map(|(x, col)| {
-                    col.iter()
-                        // .collect::<Vec<_>>()
-                        // .into_par_iter()
-                        .enumerate()
-                        // FIXME: vvvv 이걸로 대체하기
-                        // .find_map_first(predicate)
-                        .find(|&(_, el)| el.is_some())
-                        // .find_first(|(_, &el)| el.is_some())
-                        .and_then(|(k, dir)| {
-                            dir.and_then(|(direction, confidence)| {
-                                match direction {
-                                    Direction::Up => {
-                                        if x != 0 && seen_up + 20 > x {
-                                            return None;
-                                        }
-                                        seen_up = x;
-                                    }
-                                    Direction::Right => {
-                                        if x != 0 && seen_right + 20 > x {
-                                            return None;
-                                        }
-                                        seen_right = x;
-                                    }
-                                    Direction::Down => {
-                                        if x != 0 && seen_down + 20 > x {
-                                            return None;
-                                        }
-                                        seen_down = x;
-                                    }
-                                    Direction::Left => {
-                                        if x != 0 && seen_left + 20 > x {
-                                            return None;
-                                        }
-                                        seen_left = x;
-                                    }
-                                }
-                                Some(DirectionDescriptor {
-                                    direction,
-                                    position: Point { x, y: y + k },
-                                    confidence,
-                                })
-                            })
+                    col.iter().enumerate().find_map(|(k, &el)| {
+                        let (direction, confidence) = el?;
+                        Some(DirectionDescriptor {
+                            direction,
+                            position: Point::new(x, y + k),
+                            confidence,
                         })
+                    })
                 })
-                .filter_map(|dir| dir)
+                // Sanitize the too-close directions as well as `None` values.
+                .filter_map(|dir| {
+                    let desc = dir?;
+                    let last_seen_point = last_seen_points
+                        .get(&desc.direction)
+                        .copied()
+                        .unwrap_or(Default::default());
+                    // Discard the direction if it's too close to the previous one.
+                    if !desc.position.is_zero()
+                        && last_seen_point.distance(desc.position) < discarding_distance_threshold
+                    {
+                        return None;
+                    }
+                    last_seen_points
+                        .entry(desc.direction)
+                        .and_modify(|e| *e = desc.position)
+                        .or_insert(desc.position);
+                    Some(desc)
+                })
                 .collect()
         })
         .collect();
@@ -200,23 +182,43 @@ pub enum Direction {
     Left,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, PartialOrd)]
 pub struct Point {
     pub x: usize,
     pub y: usize,
+}
+
+impl Point {
+    pub fn new(x: usize, y: usize) -> Self {
+        Self { x, y }
+    }
+
+    pub fn zeroed() -> Self {
+        Self { x: 0, y: 0 }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.x == 0 && self.y == 0
+    }
+
+    pub fn distance(&self, other: Point) -> f32 {
+        let x_diff = self.x as f32 - other.x as f32;
+        let y_diff = self.y as f32 - other.y as f32;
+        (x_diff.powi(2) + y_diff.powi(2)).sqrt()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // FIXME: fix tests
     #[test]
     fn test_find_direction_commands() -> anyhow::Result<()> {
         let now = std::time::Instant::now();
-        let arr = nd::Array2::<f32>::from_shape_vec(
-            (15, 9),
+        let up_arr = nd::Array2::<f32>::from_shape_vec(
+            (15, 9), // x, y
             vec![
+                // xV, y>
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 1.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
@@ -234,7 +236,7 @@ mod tests {
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
             ],
         )?;
-        let arr2 = nd::Array2::<f32>::from_shape_vec(
+        let down_arr = nd::Array2::<f32>::from_shape_vec(
             (15, 9),
             vec![
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
@@ -254,7 +256,7 @@ mod tests {
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
             ],
         )?;
-        let arr3 = nd::Array2::<f32>::from_shape_vec(
+        let right_arr = nd::Array2::<f32>::from_shape_vec(
             (15, 9),
             vec![
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
@@ -274,7 +276,7 @@ mod tests {
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
             ],
         )?;
-        let arr4 = nd::Array2::<f32>::from_shape_vec(
+        let left_arr = nd::Array2::<f32>::from_shape_vec(
             (15, 9),
             vec![
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
@@ -296,80 +298,74 @@ mod tests {
         )?;
 
         let buf = find_direction_commands(
-            &arr.view(),
-            &arr2.view(),
-            &arr3.view(),
-            &arr4.view(),
+            &up_arr.view(),
+            &down_arr.view(),
+            &right_arr.view(),
+            &left_arr.view(),
             None,
             None,
+            Some(2.0),
         )?;
         assert_eq!(
             buf,
             vec![
                 vec![
                     DirectionDescriptor {
+                        direction: Direction::Left,
+                        position: Point { x: 1, y: 3 },
+                        confidence: 1.0
+                    },
+                    DirectionDescriptor {
                         direction: Direction::Up,
-                        position: Point { x: 3, y: 2 },
+                        position: Point { x: 4, y: 3 },
+                        confidence: 2.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Left,
+                        position: Point { x: 5, y: 3 },
                         confidence: 1.0
                     },
                     DirectionDescriptor {
                         direction: Direction::Right,
-                        position: Point { x: 4, y: 2 },
+                        position: Point { x: 7, y: 1 },
                         confidence: 1.0
                     },
                     DirectionDescriptor {
-                        direction: Direction::Right,
-                        position: Point { x: 5, y: 2 },
-                        confidence: 1.0
+                        direction: Direction::Up,
+                        position: Point { x: 8, y: 2 },
+                        confidence: 5.0
                     },
                     DirectionDescriptor {
-                        direction: Direction::Right,
-                        position: Point { x: 6, y: 2 },
+                        direction: Direction::Left,
+                        position: Point { x: 14, y: 3 },
                         confidence: 1.0
                     }
                 ],
                 vec![
                     DirectionDescriptor {
                         direction: Direction::Right,
-                        position: Point { x: 1, y: 6 },
-                        confidence: 1.0
-                    },
-                    DirectionDescriptor {
-                        direction: Direction::Up,
                         position: Point { x: 2, y: 6 },
                         confidence: 1.0
                     },
                     DirectionDescriptor {
-                        direction: Direction::Up,
-                        position: Point { x: 5, y: 6 },
+                        direction: Direction::Right,
+                        position: Point { x: 4, y: 5 },
                         confidence: 1.0
                     },
                     DirectionDescriptor {
                         direction: Direction::Up,
                         position: Point { x: 6, y: 6 },
-                        confidence: 1.0
-                    },
-                    DirectionDescriptor {
-                        direction: Direction::Right,
-                        position: Point { x: 7, y: 6 },
-                        confidence: 1.0
-                    },
-                    DirectionDescriptor {
-                        direction: Direction::Down,
-                        position: Point { x: 8, y: 6 },
-                        confidence: 1.0
-                    }
-                ],
-                vec![
-                    DirectionDescriptor {
-                        direction: Direction::Left,
-                        position: Point { x: 3, y: 12 },
-                        confidence: 1.0
+                        confidence: 3.0
                     },
                     DirectionDescriptor {
                         direction: Direction::Up,
-                        position: Point { x: 6, y: 12 },
-                        confidence: 1.0
+                        position: Point { x: 10, y: 6 },
+                        confidence: 6.0
+                    },
+                    DirectionDescriptor {
+                        direction: Direction::Up,
+                        position: Point { x: 13, y: 6 },
+                        confidence: 7.0
                     }
                 ]
             ]
