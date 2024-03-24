@@ -14,7 +14,7 @@ pub fn match_template_with_mask(
         template,
         &mut res,
         cv::imgproc::TM_CCORR_NORMED,
-        template,
+        mask,
     )?;
 
     Ok(res)
