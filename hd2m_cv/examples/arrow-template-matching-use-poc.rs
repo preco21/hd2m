@@ -10,28 +10,28 @@ use ndarray::*;
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
-    let source_img = image::open("./examples/source3.png")?;
+    let source_img = image::open("./examples/source2.png")?;
     // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
-    let source_mat = convert_image_to_mat_grayscale(&source_img)?;
+    let source_mat = convert_image_to_mat_grayscale(&source_img.to_rgba8())?;
     let output_source_mat: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
     let up_img = image::open("./examples/up.png")?;
-    let up_mat = convert_image_to_mat_grayscale(&up_img)?;
+    let up_mat = convert_image_to_mat_grayscale(&up_img.to_rgba8())?;
     let up_match_result = match_template_with_mask(&source_mat, &up_mat, None)?;
     let up_tm_array = convert_tm_mat_to_array2(&up_match_result)?;
 
     let down_img = image::open("./examples/down.png")?;
-    let down_mat = convert_image_to_mat_grayscale(&down_img)?;
+    let down_mat = convert_image_to_mat_grayscale(&down_img.to_rgba8())?;
     let down_match_result = match_template_with_mask(&source_mat, &down_mat, None)?;
     let down_tm_array = convert_tm_mat_to_array2(&down_match_result)?;
 
     let right_img = image::open("./examples/right.png")?;
-    let right_mat = convert_image_to_mat_grayscale(&right_img)?;
+    let right_mat = convert_image_to_mat_grayscale(&right_img.to_rgba8())?;
     let right_match_result = match_template_with_mask(&source_mat, &right_mat, None)?;
     let right_tm_array = convert_tm_mat_to_array2(&right_match_result)?;
 
     let left_img = image::open("./examples/left.png")?;
-    let left_mat = convert_image_to_mat_grayscale(&left_img)?;
+    let left_mat = convert_image_to_mat_grayscale(&left_img.to_rgba8())?;
     let left_match_result = match_template_with_mask(&source_mat, &left_mat, None)?;
     let left_tm_array = convert_tm_mat_to_array2(&left_match_result)?;
 
@@ -78,7 +78,8 @@ fn main() -> Result<()> {
             )?;
         }
     }
-    let i: RgbaImage = dst_img.try_into_cv()?;
+    let i: RgbImage = dst_img.try_into_cv()?;
+    // let i: RgbaImage = dst_img.try_into_cv()?;
     i.save(format!("./result.png").as_str())?;
 
     println!(
