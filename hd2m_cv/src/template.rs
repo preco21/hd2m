@@ -19,3 +19,16 @@ pub fn match_template_with_mask(
 
     Ok(res)
 }
+
+pub fn resize_template_scale(template: &cv::core::Mat, scale: f64) -> Result<cv::core::Mat> {
+    let mut res = cv::core::Mat::default();
+    cv::imgproc::resize(
+        template,
+        &mut res,
+        Default::default(),
+        scale,
+        scale,
+        cv::imgproc::INTER_LANCZOS4,
+    )?;
+    Ok(res)
+}

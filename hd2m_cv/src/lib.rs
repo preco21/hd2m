@@ -9,3 +9,6 @@ pub use search::*;
 
 mod convert;
 pub use convert::*;
+
+mod manager;
+pub use manager::*;

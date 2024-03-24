@@ -8,7 +8,7 @@ pub fn find_direction_commands(
     left: &nd::ArrayView2<f32>,
     threshold: Option<f32>,
     search_chunk_size: Option<usize>,
-    discarding_distance_threshold: Option<f32>,
+    discarding_distance_threshold: Option<f64>,
 ) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
     let threshold = threshold.unwrap_or(0.9);
     let search_chunk_size = search_chunk_size.unwrap_or(3);
@@ -35,13 +35,12 @@ pub fn raw_mats_to_direction_buffer(
 
     let mut buf: nd::Array2<IntermediaryDirection> =
         nd::Array2::from_elem(up.dim(), Default::default());
-    // FIXME: 이게 나을지 아래 enumerate하는게 나을지... 알아보기
-    nd::Zip::indexed(&mut buf)
+    nd::Zip::from(&mut buf)
         .and(up)
         .and(right)
         .and(down)
         .and(left)
-        .par_for_each(|i, buf, &up, &down, &right, &left| {
+        .par_for_each(|buf, &up, &down, &right, &left| {
             let max = up.max(down).max(right).max(left);
             *buf = if max < threshold {
                 None
@@ -65,7 +64,7 @@ pub fn raw_mats_to_direction_buffer(
 pub fn collect_direction_commands(
     buf: &nd::ArrayView2<IntermediaryDirection>,
     search_chunk_size: usize,
-    discarding_distance_threshold: f32,
+    discarding_distance_threshold: f64,
 ) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
     // Iterate over the windowed columns and collect the non-None directions.
     let chunks: Vec<Vec<DirectionDescriptor>> = buf
@@ -201,9 +200,9 @@ impl Point {
         self.x == 0 && self.y == 0
     }
 
-    pub fn distance(&self, other: Point) -> f32 {
-        let x_diff = self.x as f32 - other.x as f32;
-        let y_diff = self.y as f32 - other.y as f32;
+    pub fn distance(&self, other: Point) -> f64 {
+        let x_diff = self.x as f64 - other.x as f64;
+        let y_diff = self.y as f64 - other.y as f64;
         (x_diff.powi(2) + y_diff.powi(2)).sqrt()
     }
 }

@@ -3,8 +3,8 @@ use anyhow::Result;
 use ndarray as nd;
 use opencv as cv;
 
-pub fn convert_image_to_mat_grayscale(image: &image::DynamicImage) -> Result<cv::core::Mat> {
-    let mat: cv::core::Mat = image.to_rgba8().try_into_cv()?;
+pub fn convert_image_to_mat_grayscale(image: &image::RgbaImage) -> Result<cv::core::Mat> {
+    let mat: cv::core::Mat = image.try_into_cv()?;
     let mut res = cv::core::Mat::default();
     cv::imgproc::cvt_color(&mat, &mut res, cv::imgproc::COLOR_RGBA2GRAY, 0)?;
     Ok(res)
