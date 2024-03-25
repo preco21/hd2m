@@ -1,4 +1,4 @@
-use crate::cv_convert::*;
+use crate::util::convert_frame_to_mat;
 use anyhow::{Error, Result};
 use opencv::{self as cv};
 use tokio::sync::{mpsc, oneshot};
@@ -75,20 +75,20 @@ impl GraphicsCaptureApiHandler for Capture {
         let msg = self.trigger_capture_rx.try_recv();
         match msg {
             Ok(cb) => {
-                let mat = cv::core::Mat::try_from_cv(frame)?;
+                let mat = convert_frame_to_mat(frame)?;
                 let _ = cb.send(mat);
                 Ok(())
             }
             Err(mpsc::error::TryRecvError::Empty) => Ok(()),
             Err(mpsc::error::TryRecvError::Disconnected) => {
                 capture_control.stop();
-                return Err(Error::msg("Capture trigger channel closed"));
+                return Err(anyhow::anyhow!("Capture trigger channel closed"));
             }
         }
     }
 
     fn on_closed(&mut self) -> Result<(), Self::Error> {
-        println!("Capture Session Closed");
+        println!("Capture session closed");
         Ok(())
     }
 }

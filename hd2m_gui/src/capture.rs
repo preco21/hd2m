@@ -1,12 +1,9 @@
+use hd2m_cv::TryIntoCv;
 use iced::{futures::SinkExt, subscription, Subscription};
 use opencv as cv;
 use tokio::sync::{mpsc, oneshot};
 
-#[derive(Debug)]
-pub struct CaptureProcess {
-    id: usize,
-    state: State,
-}
+use crate::feature::{CaptureManager, CaptureManagerConfig};
 
 #[derive(Debug, Default)]
 pub enum State {
@@ -35,10 +32,24 @@ pub fn capture_process_subscription() -> Subscription<Event> {
         100,
         |mut output| async move {
             let mut state = State::Starting;
+
+            let (capture_chan_tx, capture_chan_rx) = mpsc::channel(1);
+
             loop {
                 match &mut state {
                     State::Starting => {
-                        let (sender, mut receiver) = mpsc::channel(100);
+                        let (sender, mut receiver) = mpsc::channel(1);
+
+                        tokio::spawn(async move {
+                            let capture_manager = CaptureManager::new(CaptureManagerConfig {
+                                window_title: "Code".to_owned(),
+                            })
+                            .unwrap();
+
+                            capture_manager.start(capture_chan_rx).await.unwrap();
+                            // FIXME: Close when the capture manager is done
+                        });
+
                         let _ = output.send(Event::Ready(sender)).await;
                         state = State::Ready(receiver);
                     }
@@ -46,12 +57,13 @@ pub fn capture_process_subscription() -> Subscription<Event> {
                         if let Some(action) = receiver.recv().await {
                             match action {
                                 Action::TakeScreenshot => {
-                                    // let (cap_tx, cap_rx) = oneshot::channel();
-                                    // let _ = output.send(Action::TakeScreenshot);
-                                    let _ = output.send(Event::ResultTakeScreenshot(
-                                        // FIXME: take screenshot
-                                        cv::core::Mat::default(),
-                                    ));
+                                    let (cap_tx, cap_rx) = oneshot::channel();
+                                    let _ = capture_chan_tx.send(cap_tx).await.unwrap();
+                                    let result = cap_rx.await.unwrap();
+                                    let cv: image::RgbaImage = result.try_into_cv().unwrap();
+                                    cv.save("screenshot.png").unwrap();
+                                    println!("got screenshot");
+                                    let _ = output.send(Event::ResultTakeScreenshot(result));
                                 }
                             }
                         }
