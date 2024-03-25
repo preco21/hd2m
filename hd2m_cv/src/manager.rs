@@ -70,7 +70,7 @@ impl Hd2mCvManager {
         })
     }
 
-    pub fn run_match(
+    pub fn run_match_rgba(
         &mut self,
         target: &image::RgbaImage,
     ) -> Result<Vec<Vec<DirectionDescriptor>>> {

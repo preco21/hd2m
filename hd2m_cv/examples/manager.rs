@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let source_img = image::open("./examples/source.png")?;
     manager.use_screen_size(source_img.width() as usize, source_img.height() as usize)?;
 
-    let res = manager.run_match(&source_img.to_rgba8())?;
+    let res = manager.run_match_rgba(&source_img.to_rgba8())?;
     println!(
         "Res: {:?}",
         res.iter()
