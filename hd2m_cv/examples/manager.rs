@@ -9,15 +9,15 @@ fn main() -> Result<()> {
         template_left_image: image::open("./examples/left.png")?.to_rgba8(),
         base_screen_size: (2560, 1440),
         search_options: Some(hd2m_cv::Hd2mCvSearchOptions {
-            threshold: Some(0.979),
+            threshold: Some(0.987),
             ..Default::default()
         }),
     })?;
 
     let start = std::time::Instant::now();
-    let source_img = image::open("./examples/source2.png")?;
+    let source_img = image::open("./examples/source.png")?;
+    manager.use_screen_size(source_img.width() as usize, source_img.height() as usize)?;
 
-    // let source_img = source_img.resize(2560, 1440, image::imageops::FilterType::Lanczos3);
     let res = manager.run_match(&source_img.to_rgba8())?;
     println!(
         "Res: {:?}",

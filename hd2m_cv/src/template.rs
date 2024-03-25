@@ -28,7 +28,8 @@ pub fn resize_template_scale(template: &cv::core::Mat, scale: f64) -> Result<cv:
         Default::default(),
         scale,
         scale,
-        cv::imgproc::INTER_LANCZOS4,
+        // This will produce the near-same result in terms of pixel patterns as the original template image provided
+        cv::imgproc::INTER_NEAREST_EXACT,
     )?;
     Ok(res)
 }
