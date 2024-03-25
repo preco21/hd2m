@@ -1194,9 +1194,11 @@ dependencies = [
 name = "hd2m_gui"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "hd2m_cv",
  "iced",
  "image",
+ "opencv",
  "tokio",
  "windows-capture",
 ]
