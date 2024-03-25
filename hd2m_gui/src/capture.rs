@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use hd2m_cv::TryIntoCv;
 use iced::{futures::SinkExt, subscription, Subscription};
 use opencv as cv;
@@ -34,20 +36,24 @@ pub fn capture_process_subscription() -> Subscription<Event> {
             let mut state = State::Starting;
 
             let (capture_chan_tx, capture_chan_rx) = mpsc::channel(1);
+            let capture_manager = Arc::new(
+                CaptureManager::new(CaptureManagerConfig {
+                    window_title: "Code".to_owned(),
+                })
+                .unwrap(),
+            );
 
             loop {
                 match &mut state {
                     State::Starting => {
                         let (sender, mut receiver) = mpsc::channel(1);
 
-                        tokio::spawn(async move {
-                            let capture_manager = CaptureManager::new(CaptureManagerConfig {
-                                window_title: "Code".to_owned(),
-                            })
-                            .unwrap();
-
-                            capture_manager.start(capture_chan_rx).await.unwrap();
-                            // FIXME: Close when the capture manager is done
+                        tokio::spawn({
+                            let capture_manager = capture_manager.clone();
+                            async move {
+                                capture_manager.start(capture_chan_rx).await.unwrap();
+                                // FIXME: Close when the capture manager is done
+                            }
                         });
 
                         let _ = output.send(Event::Ready(sender)).await;
