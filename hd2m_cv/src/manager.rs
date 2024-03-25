@@ -129,7 +129,7 @@ impl Hd2mCvManager {
             .insert((width, height), template_resized);
         self.current_screen_size = Some((width, height));
         self.set_search_options(Hd2mCvSearchOptions {
-            search_chunk_size: Some(rep_template_size.height as usize + 10),
+            search_chunk_size: Some(rep_template_size.height as usize * 2),
             discarding_distance_threshold: Some(rep_template_size.width as f64 + 3.0),
             ..Default::default()
         });
