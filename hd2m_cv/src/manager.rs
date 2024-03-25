@@ -74,11 +74,20 @@ impl Hd2mCvManager {
         &mut self,
         target: &image::RgbaImage,
     ) -> Result<Vec<Vec<DirectionDescriptor>>> {
+        let target = convert_image_to_mat_grayscale(target)?;
+        self.run_match_mat(&target)
+    }
+
+    pub fn run_match_mat(
+        &mut self,
+        target: &cv::core::Mat,
+    ) -> Result<Vec<Vec<DirectionDescriptor>>> {
+        anyhow::ensure!(target.channels() == 1, "Target image must be grayscale");
+
         let screen_size = self
             .current_screen_size
             .ok_or(anyhow::anyhow!("Target screen size not registered"))?;
 
-        let target = convert_image_to_mat_grayscale(target)?;
         let matching_template = self
             .template_registry
             .get(&screen_size)
@@ -86,10 +95,10 @@ impl Hd2mCvManager {
                 "Resized template not found for target size"
             ))?;
 
-        let res_up = match_template_with_mask(&target, &matching_template.up, None)?;
-        let res_down = match_template_with_mask(&target, &matching_template.down, None)?;
-        let res_right = match_template_with_mask(&target, &matching_template.right, None)?;
-        let res_left = match_template_with_mask(&target, &matching_template.left, None)?;
+        let res_up = match_template_with_mask(target, &matching_template.up, None)?;
+        let res_down = match_template_with_mask(target, &matching_template.down, None)?;
+        let res_right = match_template_with_mask(target, &matching_template.right, None)?;
+        let res_left = match_template_with_mask(target, &matching_template.left, None)?;
 
         let arr_up = convert_tm_mat_to_array2(&res_up)?;
         let arr_down = convert_tm_mat_to_array2(&res_down)?;
