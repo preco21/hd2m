@@ -18,4 +18,3 @@ opencv = { version = "0.89.0", default-features = false, features = [
     "imgproc",
 ] }
 rayon = "1.9.0"
-strum = { version = "0.26.2", features = ["derive"] }
