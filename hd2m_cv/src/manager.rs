@@ -1,6 +1,6 @@
 use crate::{
     convert_image_to_mat_grayscale, convert_tm_mat_to_array2, match_template_with_mask,
-    resize_template_scale, DirectionDescriptor, TryIntoCv,
+    resize_template_scale, DirectionDescriptor,
 };
 use anyhow::Result;
 use cv::core::MatTraitConst;
@@ -127,7 +127,6 @@ impl Hd2mCvManager {
         let rep_template_size = template_resized.up.size()?;
         self.template_registry
             .insert((width, height), template_resized);
-
         self.current_screen_size = Some((width, height));
         self.set_search_options(Hd2mCvSearchOptions {
             search_chunk_size: Some(rep_template_size.height as usize + 10),
