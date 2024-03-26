@@ -1,4 +1,7 @@
-use iced::{widget::text, Application, Command, Element, Settings, Subscription};
+use iced::{
+    widget::{button, column, text, Column},
+    Application, Command, Element, Settings, Subscription,
+};
 use tokio::sync::{mpsc, oneshot};
 
 mod capture;
@@ -30,7 +33,7 @@ impl Application for App {
     }
 
     fn title(&self) -> String {
-        String::from("External Message Example")
+        String::from("HD2M by preco21")
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -53,10 +56,28 @@ impl Application for App {
     }
 
     fn view(&self) -> Element<Message> {
-        text(123).into()
+        column![
+            text("Muahahaha :)"),
+            text("You should register keybindings for this program to work: W, A, S, D for stratagem commands"),
+            text("Use \"Mouse 5\" button to activate the macro then use 1..9 keys to instantly run the stratagem"),
+        ]
+        .padding(20)
+        .spacing(20)
+        .into()
+    }
+
+    fn theme(&self) -> Self::Theme {
+        iced::Theme::Dark
     }
 }
 
 fn main() -> iced::Result {
-    App::run(Settings::default())
+    App::run(Settings {
+        window: iced::window::Settings {
+            size: iced::Size::new(300.0, 250.0),
+            resizable: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    })
 }
