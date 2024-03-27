@@ -1,31 +1,27 @@
+use crate::{
+    feature::{CaptureManager, CaptureManagerConfig},
+    util::Shutdown,
+};
 use hd2m_cv::TryIntoCv;
-use iced::{futures::SinkExt, subscription, Subscription};
+use iced::{
+    futures::{future, SinkExt},
+    subscription, Subscription,
+};
 use opencv as cv;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::feature::{CaptureManager, CaptureManagerConfig};
-
-#[derive(Debug, Default)]
-pub enum State {
-    #[default]
-    Starting,
-    Ready(mpsc::Receiver<Action>),
-    Errored,
-    Restoring,
-}
-
 #[derive(Debug, Clone)]
 pub enum Event {
-    Ready(mpsc::Sender<Action>),
+    Ready(mpsc::Sender<Input>),
     ResultTakeScreenshot(cv::core::Mat),
 }
 
 #[derive(Debug)]
-pub enum Action {
+pub enum Input {
     TakeScreenshot,
 }
 
-pub fn capture_process_subscription() -> Subscription<Event> {
+pub fn capture_process_subscription(shutdown: Shutdown) -> Subscription<Event> {
     struct CaptureSubscription;
     subscription::channel(
         std::any::TypeId::of::<CaptureSubscription>(),
@@ -53,29 +49,37 @@ pub fn capture_process_subscription() -> Subscription<Event> {
                         state = State::Ready(receiver);
                     }
                     State::Ready(receiver) => {
-                        if let Some(action) = receiver.recv().await {
-                            match action {
-                                Action::TakeScreenshot => {
-                                    let (cap_tx, cap_rx) = oneshot::channel();
-                                    let _ = capture_chan_tx.send(cap_tx).await.unwrap();
-                                    let result = cap_rx.await.unwrap();
-                                    let cv: image::RgbaImage =
-                                        result.clone().try_into_cv().unwrap();
-                                    cv.save("screenshot.png").unwrap();
-                                    println!("got screenshot");
-                                    let _ = output.send(Event::ResultTakeScreenshot(result));
+                        tokio::select! {
+                            Some(action) = receiver.recv() => {
+                                println!("got action: {:?}", action);
+                                match action {
+                                    Input::TakeScreenshot => {
+                                        let (cap_tx, cap_rx) = oneshot::channel();
+                                        let _ = capture_chan_tx.send(cap_tx).await.unwrap();
+                                        let result = cap_rx.await.unwrap();
+                                        let cv: image::RgbaImage = result.clone().try_into_cv().unwrap();
+                                        cv.save("screenshot.png").unwrap();
+                                        println!("got screenshot");
+                                        let _ = output.send(Event::ResultTakeScreenshot(result));
+                                    }
                                 }
+                            }
+                            _ = shutdown.recv_shutdown() => {
+                                state = State::Closed;
                             }
                         }
                     }
-                    State::Errored => {
-                        // FIXME: handle errored state
-                    }
-                    State::Restoring => {
-                        // FIXME: handle recover from error
-                    }
+                    State::Closed => future::pending().await,
                 }
             }
         },
     )
+}
+
+#[derive(Debug, Default)]
+enum State {
+    #[default]
+    Starting,
+    Ready(mpsc::Receiver<Input>),
+    Closed,
 }
