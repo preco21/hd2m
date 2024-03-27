@@ -1,4 +1,6 @@
+use hd2m_cv::Direction;
 use iced::{
+    keyboard::key,
     widget::{button, column, text, Column},
     window, Application, Command, Element, Settings, Subscription,
 };
@@ -13,6 +15,7 @@ mod util;
 #[derive(Debug)]
 struct App {
     is_macro_active: bool,
+    current_strat_directions: Vec<Vec<Direction>>,
     input_manager_tx: Option<mpsc::Sender<input_manager::Input>>,
     capture_tx: Option<mpsc::Sender<capture::Input>>,
     shutdown_token: Shutdown,
@@ -38,6 +41,7 @@ impl Application for App {
         let shutdown_token = Shutdown::new(shutdown_tx, shutdown_complete_tx.clone());
 
         let app = Self {
+            current_strat_directions: Vec::new(),
             is_macro_active: false,
             input_manager_tx: None,
             capture_tx: None,
@@ -72,8 +76,9 @@ impl Application for App {
                     self.capture_tx = Some(sender);
                     println!("Capture ready");
                 }
-                capture::Event::ResultTakeScreenshot(mat) => {
-                    println!("Got screenshot");
+                capture::Event::ResultStratMacro(directions) => {
+                    println!("ResultStratMacro: {:?}", directions);
+                    self.current_strat_directions = directions;
                 }
             },
             Message::HandleInputManagerEvent(event) => match event {
@@ -83,8 +88,33 @@ impl Application for App {
                 input_manager::Event::ToggleStratMacro(flag) => {
                     self.is_macro_active = flag;
                     if flag {
-                        if let Some(capture) = &self.capture_tx {
-                            let _ = capture.send(capture::Input::TakeScreenshot);
+                        if let Some(capture_tx) = &self.capture_tx {
+                            let _ = capture_tx.try_send(capture::Input::RunStratMacro);
+                        }
+                    }
+                }
+                input_manager::Event::UseStratKey(key) => {
+                    println!("Strat Key: {}", key);
+                    println!("Macro Active: {}", self.is_macro_active);
+                    println!(
+                        "Current Strat Directions: {:?}",
+                        self.current_strat_directions
+                    );
+                    if self.is_macro_active && !self.current_strat_directions.is_empty() {
+                        println!(
+                            "current_strat_directions: {:?}",
+                            self.current_strat_directions
+                        );
+                        if let Some(input_manager_tx) = &self.input_manager_tx {
+                            let el = self.current_strat_directions.get(key - 1);
+
+                            println!("input_manager Key: {:?} {:?}", key, el);
+                            if let Some(dir) = el {
+                                println!("Sending direction: {:?}", dir);
+                                let _ = input_manager_tx.try_send(
+                                    input_manager::Input::SendDirectionCommand(dir.clone()),
+                                );
+                            }
                         }
                     }
                 }

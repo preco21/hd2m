@@ -1,4 +1,5 @@
 use anyhow::Result;
+use cv::core::MatTrait;
 use opencv::{self as cv};
 
 pub fn match_template_with_mask(
