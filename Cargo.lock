@@ -1272,7 +1272,6 @@ dependencies = [
  "rdev",
  "tokio",
  "windows-capture",
- "winput",
 ]
 
 [[package]]
@@ -3963,15 +3962,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dffa400e67ed5a4dd237983829e66475f0a4a26938c4b04c21baede6262215b8"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "winput"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd4bec39938e0ae68b300e2a4197b6437f13d53d1c146c6e297e346a71d5dde9"
-dependencies = [
- "winapi",
 ]
 
 [[package]]
