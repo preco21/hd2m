@@ -27,7 +27,7 @@ pub fn input_manager_subscription(shutdown: Shutdown) -> iced::Subscription<Even
         |mut output| async move {
             let mut state = State::Starting;
 
-            let mut enigo = Enigo::new();
+            // let mut enigo = Enigo::new();
 
             // Listen for mouse button presses
             let (trigger_evt_tx, mut trigger_evt_rx) = mpsc::channel::<rdev::EventType>(1);
