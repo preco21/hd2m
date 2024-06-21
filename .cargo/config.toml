@@ -1,5 +1,5 @@
 [env]
-OPENCV_LINK_LIBS = "opencv_core4,opencv_imgproc4"
+OPENCV_LINK_LIBS = "zlib,opencv_core4,opencv_imgproc4"
 OPENCV_INCLUDE_PATHS = "C:\\Users\\preco\\vcpkg\\installed\\x64-windows-static\\include"
 OPENCV_LINK_PATHS = "C:\\Users\\preco\\vcpkg\\installed\\x64-windows-static\\lib"
 OPENCV_MSVC_CRT = "static"
