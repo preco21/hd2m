@@ -18,7 +18,7 @@ fn main() {
         core::*, Win32::System::Threading::*, Win32::UI::Input::KeyboardAndMouse::*,
         Win32::UI::WindowsAndMessaging::*,
     };
-    let hwnd: HWND = unsafe { FindWindowW(None, w!("HELLDIVERS™ 2")) };
+    let hwnd: HWND = unsafe { FindWindowW(None, w!("HELLDIVERS")) };
 
     // Bind your caps lock key to a function that starts an autoclicker.
     // CapsLockKey.bind(move || {
@@ -71,21 +71,21 @@ fn main() {
             Ok(())
         }
 
-        // // let wh = GetActiveWindow();
-        // let vk = 0x57;
-        // let sc = 0x11;
-        // // let res = PostMessageA(hwnd, WM_KEYDOWN, WPARAM(vk), LPARAM(sc << 16));
-        // let res = PostMessageA(
-        //     hwnd,
-        //     WM_KEYDOWN,
-        //     WPARAM(vk),
-        //     LPARAM((sc << 16) | 0x00000001),
-        // );
-        // println!("res: {:?}", res);
-        // sleep(Duration::from_millis(130));
-        // // let res2 = PostMessageA(hwnd, WM_KEYUP, WPARAM(vk), LPARAM(sc << 16));
-        // let res2 = PostMessageA(hwnd, WM_KEYUP, WPARAM(vk), LPARAM((sc << 16) | 0xC0000001));
-        // println!("res: {:?}", res2);
+        // let wh = GetActiveWindow();
+        let vk = 0x57;
+        let sc = 0x11;
+        // let res = PostMessageA(hwnd, WM_KEYDOWN, WPARAM(vk), LPARAM(sc << 16));
+        let res = PostMessageA(
+            hwnd,
+            WM_KEYDOWN,
+            WPARAM(vk),
+            LPARAM((sc << 16) | 0x00000001),
+        );
+        println!("res: {:?}", res);
+        sleep(Duration::from_millis(130));
+        // let res2 = PostMessageA(hwnd, WM_KEYUP, WPARAM(vk), LPARAM(sc << 16));
+        let res2 = PostMessageA(hwnd, WM_KEYUP, WPARAM(vk), LPARAM((sc << 16) | 0xC0000001));
+        println!("res: {:?}", res2);
 
         std::thread::spawn(move || {
             const KEYUP: u32 = 0x0002;
