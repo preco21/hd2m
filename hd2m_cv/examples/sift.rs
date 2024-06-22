@@ -3,10 +3,11 @@ use std::time::Duration;
 use anyhow::Result;
 use opencv::{
     self as cv,
-    core::no_array,
-    features2d::{BFMatcher, SIFT},
+    core::{no_array, DMatch, Vector},
+    features2d::{BFMatcher, FlannBasedMatcher, ORB_ScoreType, ORB, SIFT},
+    flann::{IndexParams, SearchParams, FLANN_INDEX_KDTREE},
     prelude::*,
-    types::{VectorOfDMatch, VectorOfKeyPoint},
+    types::{PtrOfIndexParams, PtrOfSearchParams, VectorOfDMatch, VectorOfKeyPoint},
 };
 
 fn main() -> Result<()> {
@@ -18,6 +19,7 @@ fn main() -> Result<()> {
     let start = std::time::Instant::now();
 
     let mut sift = SIFT::create(0, 3, 0.04, 10.0, 1.6, true)?;
+    // let mut orb = ORB::create(500, 1.2, 8, 31, 0, 2, ORB_ScoreType::HARRIS_SCORE, 31, 20)?;
 
     let mut src_keypoints = cv::core::Vector::<cv::core::KeyPoint>::new();
     let mut src_descriptors = Mat::default();
@@ -33,20 +35,38 @@ fn main() -> Result<()> {
     )?;
     sift.detect_and_compute(
         &tmpl_img,
-        &tmpl_img,
+        // &tmpl_img,
+        &Mat::default(),
         &mut tmpl_keypoints,
         &mut tmpl_descriptors,
         false,
     )?;
 
     // // Match descriptors using BFMatcher
-    let mut bf_matcher = BFMatcher::create(cv::core::NORM_L2, true)?;
-    let mut matches = VectorOfDMatch::new();
-    bf_matcher.train_match(
-        &src_descriptors,
+    // let mut bf_matcher = BFMatcher::create(cv::core::NORM_L2, true)?;
+    // let mut matches = VectorOfDMatch::new();
+    // bf_matcher.train_match(
+    //     &src_descriptors,
+    //     &tmpl_descriptors,
+    //     &mut matches,
+    //     &no_array(),
+    // )?;
+
+    let mut index_params = IndexParams::default()?;
+    index_params.set_algorithm(FLANN_INDEX_KDTREE)?;
+    index_params.set_int("trees", 5)?;
+    let index_params = PtrOfIndexParams::new(index_params);
+
+    let search_params = SearchParams::new_1(50, 0.0, true)?;
+    let search_params = PtrOfSearchParams::new(search_params);
+
+    let bf = FlannBasedMatcher::new(&index_params, &search_params)?;
+    let mut matches = Vector::<DMatch>::default();
+    bf.train_match(
         &tmpl_descriptors,
+        &src_descriptors,
         &mut matches,
-        &no_array(),
+        &Mat::default(),
     )?;
 
     println!("matches: {:?}", matches);
