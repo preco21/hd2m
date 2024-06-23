@@ -64,7 +64,7 @@ pub fn raw_mats_to_direction_buffer(
 pub fn collect_direction_commands(
     buf: &nd::ArrayView2<IntermediaryDirection>,
     search_chunk_size: usize,
-    discarding_distance_threshold: f64,
+    discarding_window_range: f64,
 ) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
     // Iterate over the windowed columns and collect the non-None directions.
     let chunks: Vec<Vec<DirectionDescriptor>> = buf
@@ -122,7 +122,7 @@ pub fn collect_direction_commands(
                         .unwrap_or(Default::default());
                     // Discard the direction if it's too close to the previous one.
                     if !desc.position.is_zero()
-                        && last_seen_point.distance(desc.position) < discarding_distance_threshold
+                        && last_seen_point.distance(desc.position) < discarding_window_range
                     {
                         return None;
                     }
