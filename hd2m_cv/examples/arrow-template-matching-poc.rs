@@ -66,13 +66,7 @@ fn main() -> Result<()> {
 
 fn match_template(template: &cv::core::Mat, source: &cv::core::Mat) -> Result<cv::core::Mat> {
     let mut res = cv::core::Mat::default();
-    cv::imgproc::match_template(
-        source,
-        template,
-        &mut res,
-        cv::imgproc::TM_CCORR_NORMED,
-        template,
-    )?;
+    cv::imgproc::match_template(source, template, &mut res, cv::imgproc::TM_CCOEFF, template)?;
     Ok(res)
 }
 

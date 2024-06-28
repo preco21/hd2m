@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use hd2m_cv::{
-    convert_image_to_mat_grayscale, convert_tm_mat_to_array2, find_direction_commands,
+    convert_image_to_mat_grayscale, convert_mat_to_array2, find_direction_commands,
     match_template_with_mask, Direction, TryIntoCv,
 };
 use image::{RgbImage, RgbaImage};
@@ -15,26 +15,28 @@ fn main() -> Result<()> {
     let source_mat = convert_image_to_mat_grayscale(&source_img.to_rgba8())?;
     let output_source_mat: cv::core::Mat = source_img.to_rgba8().try_into_cv()?;
 
+    let start = std::time::Instant::now();
     let up_img = image::open("./examples/up.png")?;
     let up_mat = convert_image_to_mat_grayscale(&up_img.to_rgba8())?;
     let up_match_result = match_template_with_mask(&source_mat, &up_mat, None)?;
-    let up_tm_array = convert_tm_mat_to_array2(&up_match_result)?;
+    let up_tm_array = convert_mat_to_array2(&up_match_result)?;
 
     let down_img = image::open("./examples/down.png")?;
     let down_mat = convert_image_to_mat_grayscale(&down_img.to_rgba8())?;
     let down_match_result = match_template_with_mask(&source_mat, &down_mat, None)?;
-    let down_tm_array = convert_tm_mat_to_array2(&down_match_result)?;
+    let down_tm_array = convert_mat_to_array2(&down_match_result)?;
 
     let right_img = image::open("./examples/right.png")?;
     let right_mat = convert_image_to_mat_grayscale(&right_img.to_rgba8())?;
     let right_match_result = match_template_with_mask(&source_mat, &right_mat, None)?;
-    let right_tm_array = convert_tm_mat_to_array2(&right_match_result)?;
+    let right_tm_array = convert_mat_to_array2(&right_match_result)?;
 
     let left_img = image::open("./examples/left.png")?;
     let left_mat = convert_image_to_mat_grayscale(&left_img.to_rgba8())?;
     let left_match_result = match_template_with_mask(&source_mat, &left_mat, None)?;
-    let left_tm_array = convert_tm_mat_to_array2(&left_match_result)?;
+    let left_tm_array = convert_mat_to_array2(&left_match_result)?;
 
+    println!("Elapsed (matching): {:?}", start.elapsed());
     println!(
         "source image width/height: {:?}",
         (source_img.width(), source_img.height())

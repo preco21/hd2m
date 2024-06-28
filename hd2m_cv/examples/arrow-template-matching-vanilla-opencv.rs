@@ -62,7 +62,7 @@ fn match_template(template: &cv::core::Mat, source: &cv::core::Mat) -> Result<cv
         source,
         template,
         &mut res,
-        cv::imgproc::TM_CCOEFF_NORMED,
+        cv::imgproc::TM_CCOEFF,
         &cv::core::no_array(),
     )?;
     Ok(res)
