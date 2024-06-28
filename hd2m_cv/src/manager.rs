@@ -80,8 +80,6 @@ impl Hd2mCvManager {
         &mut self,
         target: &cv::core::Mat,
     ) -> Result<Vec<Vec<DirectionDescriptor>>> {
-        anyhow::ensure!(target.channels() == 1, "Target image must be grayscale");
-
         let screen_size = self
             .current_screen_size
             .ok_or(anyhow::anyhow!("Target screen size not registered"))?;

@@ -8,9 +8,8 @@ pub struct TemplateMatcher {
 
 impl TemplateMatcher {
     pub fn new(template: &cv::core::Mat) -> Result<Self> {
-        let grayed = convert_mat_grayscale(template)?;
         Ok(Self {
-            original_template: grayed.clone(),
+            original_template: convert_mat_grayscale(template)?,
         })
     }
 
