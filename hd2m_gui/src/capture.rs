@@ -61,7 +61,7 @@ pub fn capture_process_subscription(shutdown: Shutdown) -> Subscription<Event> {
                 .to_rgba8(),
                 base_screen_size: (2560, 1440),
                 search_options: Some(hd2m_cv::Hd2mCvSearchOptions {
-                    threshold: Some(0.987),
+                    threshold: Some(0.9),
                     ..Default::default()
                 }),
             })
@@ -92,7 +92,7 @@ pub fn capture_process_subscription(shutdown: Shutdown) -> Subscription<Event> {
                             Some(action) = receiver.recv() => {
                                 match action {
                                     Input::RunStratMacro => {
-                                        tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(360)).await;
 
                                         let (cap_tx, cap_rx) = oneshot::channel();
                                         let _ = capture_chan_tx.send(cap_tx).await.unwrap();
