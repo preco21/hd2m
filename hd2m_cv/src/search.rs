@@ -42,7 +42,7 @@ fn raw_mats_to_direction_buffer(
         .and(left)
         .par_for_each(|buf, &up, &down, &right, &left| {
             let max = up.max(down).max(right).max(left);
-            *buf = if max < threshold {
+            *buf = if max.is_nan() || max < threshold {
                 None
             } else {
                 let direction = if max == up {
