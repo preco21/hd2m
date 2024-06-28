@@ -14,7 +14,7 @@ anyhow = "1.0.81"
 half = "2.4.0"
 image = "0.25.0"
 ndarray = { version = "0.15.6", features = ["rayon"] }
-opencv = { version = "0.89.0", default-features = false, features = [
+opencv = { version = "0.92.0", default-features = false, features = [
     "imgproc",
 ] }
 rayon = "1.9.0"
