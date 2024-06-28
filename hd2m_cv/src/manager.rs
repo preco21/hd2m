@@ -37,7 +37,7 @@ pub struct Hd2mCvManager {
 impl Hd2mCvManager {
     pub fn new(config: Hd2mCvManagerConfig) -> Result<Self> {
         let up_template = TemplateMatcher::new(&config.template_up_image.try_into_cv()?)?;
-        let init_template_size = up_template.edges_mat().size()?;
+        let init_template_size = up_template.mat().size()?;
         let matcher_set = DirectionTemplateMatcherSet::new(
             up_template,
             TemplateMatcher::new(&config.template_down_image.try_into_cv()?)?,
@@ -140,7 +140,7 @@ impl Hd2mCvManager {
             template_left,
         )?;
 
-        let rep_template_size = template_resized.up.edges_mat().size()?;
+        let rep_template_size = template_resized.up.mat().size()?;
         self.template_registry
             .insert((width, height), template_resized);
         self.current_screen_size = Some((width, height));
