@@ -2,7 +2,7 @@ use crate::{
     feature::{CaptureManager, CaptureManagerConfig},
     util::Shutdown,
 };
-use hd2m_cv::{convert_mat_grayscale, Direction, TryIntoCv};
+use hd2m_cv::{Direction, TryIntoCv};
 use iced::{
     futures::{future, SinkExt},
     subscription, Subscription,
@@ -110,8 +110,7 @@ pub fn capture_process_subscription(shutdown: Shutdown) -> Subscription<Event> {
                                         ).unwrap().clone_pointee();
 
                                         manager.use_screen_size(size.width as usize, size.height as usize).unwrap();
-                                        let grayscale = convert_mat_grayscale(&cropped).unwrap();
-                                        let res = manager.run_match_mat(&grayscale).unwrap();
+                                        let res = manager.run_match_mat(&cropped).unwrap();
 
                                         // let res = manager.run_match_rgba(&frame.to_rgba8()).unwrap();
                                         println!(
