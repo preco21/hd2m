@@ -156,8 +156,9 @@ where
 
     fn try_from_cv(from: &cv::Point_<T>) -> anyhow::Result<Self> {
         let cv::Point_ { x, y, .. } = *from;
-        let mat = cv::Mat::from_slice(&[x, y])?;
-        Ok(mat)
+        let point = [x, y];
+        let mat = cv::Mat::from_slice(&point)?;
+        Ok(mat.clone_pointee())
     }
 }
 
@@ -180,8 +181,9 @@ where
 
     fn try_from_cv(from: &cv::Point3_<T>) -> anyhow::Result<Self> {
         let cv::Point3_ { x, y, z, .. } = *from;
-        let mat = cv::Mat::from_slice(&[x, y, z])?;
-        Ok(mat)
+        let point = [x, y, z];
+        let mat = cv::Mat::from_slice(&point)?;
+        Ok(mat.clone_pointee())
     }
 }
 

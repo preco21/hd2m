@@ -28,7 +28,7 @@ where
         let (width, height) = from.dimensions();
         let cv_type = cv_core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
         let mat = unsafe {
-            cv_core::Mat::new_rows_cols_with_data(
+            cv_core::Mat::new_rows_cols_with_data_unsafe(
                 height as i32,
                 width as i32,
                 cv_type,
