@@ -30,6 +30,35 @@ fn main() -> Result<()> {
     canny(&src_img, &mut src_edges, 150.0, 300.0, 3, true)?;
     canny(&tmpl_img, &mut template_edges, 150.0, 300.0, 3, true)?;
 
+    let mut resized_template_edge = Mat::default();
+    cv::imgproc::resize(
+        &template_edges,
+        &mut resized_template_edge,
+        cv::core::Size::default(),
+        0.75,
+        0.75,
+        cv::imgproc::INTER_NEAREST_EXACT,
+    )?;
+
+    let mut resize_from_original_canny = Mat::default();
+    cv::imgproc::resize(
+        &tmpl_img,
+        &mut resize_from_original_canny,
+        cv::core::Size::default(),
+        0.75,
+        0.75,
+        cv::imgproc::INTER_NEAREST_EXACT,
+    )?;
+    let mut resize_from_original_canny_edges = Mat::default();
+    canny(
+        &resize_from_original_canny,
+        &mut resize_from_original_canny_edges,
+        150.0,
+        300.0,
+        3,
+        true,
+    )?;
+
     println!("Elapsed time: {:?}", start.elapsed());
 
     let mut gx = Mat::default();
@@ -39,8 +68,18 @@ fn main() -> Result<()> {
 
     opencv::imgcodecs::imwrite("edge-result-src.png", &src_edges, &Vector::new())?;
     opencv::imgcodecs::imwrite("edge-result-tmpl.png", &template_edges, &Vector::new())?;
-    opencv::imgcodecs::imwrite("edge-result-src-sobel-x.png", &gx, &Vector::new())?;
-    opencv::imgcodecs::imwrite("edge-result-src-sobel-y.png", &gy, &Vector::new())?;
+    opencv::imgcodecs::imwrite(
+        "edge-result-resize-tmpl.png",
+        &resized_template_edge,
+        &Vector::new(),
+    )?;
+    opencv::imgcodecs::imwrite(
+        "edge-result-resize-from-original-canny.png",
+        &resize_from_original_canny_edges,
+        &Vector::new(),
+    )?;
+    // opencv::imgcodecs::imwrite("edge-result-src-sobel-x.png", &gx, &Vector::new())?;
+    // opencv::imgcodecs::imwrite("edge-result-src-sobel-y.png", &gy, &Vector::new())?;
 
     Ok(())
 }

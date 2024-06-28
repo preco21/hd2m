@@ -1,6 +1,5 @@
 use crate::{
-    convert_image_to_mat_grayscale, convert_tm_mat_to_array2, match_template_with_mask,
-    resize_template_scale, DirectionDescriptor,
+    convert_mat_to_array2, find_direction_commands, DirectionDescriptor, TemplateMatcher, TryIntoCv,
 };
 use anyhow::Result;
 use cv::core::MatTraitConst;
@@ -26,10 +25,10 @@ pub struct Hd2mCvSearchOptions {
 
 #[derive(Debug)]
 pub struct Hd2mCvManager {
-    template_original: DirectionImageTemplate,
+    template_original: DirectionTemplateMatcherSet,
     base_screen_size: (usize, usize),
     current_screen_size: Option<(usize, usize)>,
-    template_registry: BTreeMap<(usize, usize), DirectionImageTemplate>,
+    template_registry: BTreeMap<(usize, usize), DirectionTemplateMatcherSet>,
     template_search_threshold: f32,
     template_search_chunk_size: usize,
     template_discarding_distance_threshold: f64,
@@ -37,26 +36,26 @@ pub struct Hd2mCvManager {
 
 impl Hd2mCvManager {
     pub fn new(config: Hd2mCvManagerConfig) -> Result<Self> {
-        let rep_template = convert_image_to_mat_grayscale(&config.template_up_image)?;
-        let init_template_size = rep_template.size()?;
-        let search_options = config.search_options.unwrap_or_default();
-        let template_original = DirectionImageTemplate::from_template(
-            rep_template,
-            convert_image_to_mat_grayscale(&config.template_down_image)?,
-            convert_image_to_mat_grayscale(&config.template_right_image)?,
-            convert_image_to_mat_grayscale(&config.template_left_image)?,
-        );
-        let mut template_registry: BTreeMap<(usize, usize), DirectionImageTemplate> =
+        let up_template = TemplateMatcher::new(&config.template_up_image.try_into_cv()?)?;
+        let init_template_size = up_template.edges_mat().size()?;
+        let matcher_set = DirectionTemplateMatcherSet::new(
+            up_template,
+            TemplateMatcher::new(&config.template_down_image.try_into_cv()?)?,
+            TemplateMatcher::new(&config.template_right_image.try_into_cv()?)?,
+            TemplateMatcher::new(&config.template_left_image.try_into_cv()?)?,
+        )?;
+        let mut template_registry: BTreeMap<(usize, usize), DirectionTemplateMatcherSet> =
             BTreeMap::new();
         template_registry.insert(
             (
                 init_template_size.width as usize,
                 init_template_size.height as usize,
             ),
-            template_original.clone(),
+            matcher_set.clone(),
         );
+        let search_options = config.search_options.unwrap_or_default();
         Ok(Self {
-            template_original,
+            template_original: matcher_set,
             base_screen_size: config.base_screen_size,
             template_registry,
             template_search_threshold: search_options.threshold.unwrap_or(0.987),
@@ -74,8 +73,7 @@ impl Hd2mCvManager {
         &mut self,
         target: &image::RgbaImage,
     ) -> Result<Vec<Vec<DirectionDescriptor>>> {
-        let target = convert_image_to_mat_grayscale(target)?;
-        self.run_match_mat(&target)
+        self.run_match_mat(&target.try_into_cv()?)
     }
 
     pub fn run_match_mat(
@@ -95,17 +93,17 @@ impl Hd2mCvManager {
                 "Resized template not found for target size"
             ))?;
 
-        let res_up = match_template_with_mask(target, &matching_template.up, None)?;
-        let res_down = match_template_with_mask(target, &matching_template.down, None)?;
-        let res_right = match_template_with_mask(target, &matching_template.right, None)?;
-        let res_left = match_template_with_mask(target, &matching_template.left, None)?;
+        let res_up = matching_template.up.match_template(target)?;
+        let res_down = matching_template.down.match_template(target)?;
+        let res_right = matching_template.right.match_template(target)?;
+        let res_left = matching_template.left.match_template(target)?;
 
-        let arr_up = convert_tm_mat_to_array2(&res_up)?;
-        let arr_down = convert_tm_mat_to_array2(&res_down)?;
-        let arr_right = convert_tm_mat_to_array2(&res_right)?;
-        let arr_left = convert_tm_mat_to_array2(&res_left)?;
+        let arr_up = convert_mat_to_array2(&res_up)?;
+        let arr_down = convert_mat_to_array2(&res_down)?;
+        let arr_right = convert_mat_to_array2(&res_right)?;
+        let arr_left = convert_mat_to_array2(&res_left)?;
 
-        let descriptors = crate::find_direction_commands(
+        let descriptors = find_direction_commands(
             &arr_up.view(),
             &arr_down.view(),
             &arr_right.view(),
@@ -125,15 +123,24 @@ impl Hd2mCvManager {
 
         // Since Helldivers 2 will not scale the ui along the height, we will use the width as the base scale.
         let inferred_scale = width as f64 / self.base_screen_size.0 as f64;
-        let template_resized = DirectionImageTemplate::with_resized(
-            &self.template_original.up,
-            &self.template_original.down,
-            &self.template_original.right,
-            &self.template_original.left,
-            inferred_scale,
+
+        let mut template_up = self.template_original.up.clone();
+        template_up.resize_template_scale(inferred_scale)?;
+        let mut template_down = self.template_original.down.clone();
+        template_down.resize_template_scale(inferred_scale)?;
+        let mut template_right = self.template_original.right.clone();
+        template_right.resize_template_scale(inferred_scale)?;
+        let mut template_left = self.template_original.left.clone();
+        template_left.resize_template_scale(inferred_scale)?;
+
+        let template_resized = DirectionTemplateMatcherSet::new(
+            template_up,
+            template_down,
+            template_right,
+            template_left,
         )?;
 
-        let rep_template_size = template_resized.up.size()?;
+        let rep_template_size = template_resized.up.edges_mat().size()?;
         self.template_registry
             .insert((width, height), template_resized);
         self.current_screen_size = Some((width, height));
@@ -159,40 +166,25 @@ impl Hd2mCvManager {
 }
 
 #[derive(Debug, Clone)]
-pub struct DirectionImageTemplate {
-    pub up: cv::core::Mat,
-    pub down: cv::core::Mat,
-    pub right: cv::core::Mat,
-    pub left: cv::core::Mat,
+pub struct DirectionTemplateMatcherSet {
+    pub up: TemplateMatcher,
+    pub down: TemplateMatcher,
+    pub right: TemplateMatcher,
+    pub left: TemplateMatcher,
 }
 
-impl DirectionImageTemplate {
-    pub fn from_template(
-        template_up: cv::core::Mat,
-        template_down: cv::core::Mat,
-        template_right: cv::core::Mat,
-        template_left: cv::core::Mat,
-    ) -> Self {
-        Self {
+impl DirectionTemplateMatcherSet {
+    pub fn new(
+        template_up: TemplateMatcher,
+        template_down: TemplateMatcher,
+        template_right: TemplateMatcher,
+        template_left: TemplateMatcher,
+    ) -> Result<Self> {
+        Ok(Self {
             up: template_up,
             down: template_down,
             right: template_right,
             left: template_left,
-        }
-    }
-
-    pub fn with_resized(
-        template_up: &cv::core::Mat,
-        template_down: &cv::core::Mat,
-        template_right: &cv::core::Mat,
-        template_left: &cv::core::Mat,
-        scale: f64,
-    ) -> Result<Self> {
-        Ok(Self {
-            up: resize_template_scale(template_up, scale)?,
-            down: resize_template_scale(template_down, scale)?,
-            right: resize_template_scale(template_right, scale)?,
-            left: resize_template_scale(template_left, scale)?,
         })
     }
 }

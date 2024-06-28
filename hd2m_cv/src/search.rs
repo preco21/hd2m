@@ -22,7 +22,7 @@ pub fn find_direction_commands(
     Ok(commands)
 }
 
-pub fn raw_mats_to_direction_buffer(
+fn raw_mats_to_direction_buffer(
     up: &nd::ArrayView2<f32>,
     down: &nd::ArrayView2<f32>,
     right: &nd::ArrayView2<f32>,
@@ -61,16 +61,17 @@ pub fn raw_mats_to_direction_buffer(
     Ok(buf)
 }
 
-pub fn collect_direction_commands(
+fn collect_direction_commands(
     buf: &nd::ArrayView2<IntermediaryDirection>,
     search_chunk_size: usize,
-    discarding_window_range: f64,
+    discarding_window_distance: f64,
 ) -> anyhow::Result<Vec<Vec<DirectionDescriptor>>> {
     // Iterate over the windowed columns and collect the non-None directions.
     let chunks: Vec<Vec<DirectionDescriptor>> = buf
         .axis_windows(nd::Axis(1), search_chunk_size)
         .into_iter()
         .enumerate()
+        // FIXME: find a way to parallelize this without collect
         .collect::<Vec<_>>()
         .par_iter()
         .map(|(y, rows)| {
@@ -98,12 +99,16 @@ pub fn collect_direction_commands(
              * Notice each column is now a row, and we can find the first non-None value in each row.
              * In which you can think of a transposed version of the original matrix.
              *
+             * - Y: Axis(1)
+             * - X: Axis(0)
+             *
              * Also, since we are running very large number of iterations, we need to parallelize this.
              */
             let mut last_seen_points: BTreeMap<Direction, Point> = BTreeMap::new();
             rows.axis_iter(nd::Axis(0))
                 .enumerate()
                 .map(|(x, col)| {
+                    // FIXME: find a most highest confidence value
                     col.iter().enumerate().find_map(|(k, &el)| {
                         let (direction, confidence) = el?;
                         Some(DirectionDescriptor {
@@ -113,6 +118,7 @@ pub fn collect_direction_commands(
                         })
                     })
                 })
+                // FIXME: 앞뒤 None 값들만 잘라내고 N개씩 CHUNK해버리기?
                 // Sanitize the too-close directions as well as `None` values.
                 .filter_map(|dir| {
                     let desc = dir?;
@@ -122,7 +128,7 @@ pub fn collect_direction_commands(
                         .unwrap_or(Default::default());
                     // Discard the direction if it's too close to the previous one.
                     if !desc.position.is_zero()
-                        && last_seen_point.distance(desc.position) < discarding_window_range
+                        && last_seen_point.distance(desc.position) < discarding_window_distance
                     {
                         return None;
                     }
@@ -214,6 +220,7 @@ mod tests {
     #[test]
     fn test_find_direction_commands() -> anyhow::Result<()> {
         let now = std::time::Instant::now();
+        // FIXME: Axis is reversed
         let up_arr = nd::Array2::<f32>::from_shape_vec(
             (15, 9), // x, y
             vec![

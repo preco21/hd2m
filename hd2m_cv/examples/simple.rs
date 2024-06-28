@@ -4,8 +4,8 @@ use anyhow::Result;
 use opencv::{self as cv, prelude::*};
 
 fn main() -> Result<()> {
-    let source = cv::imgcodecs::imread("./source.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
-    let template = cv::imgcodecs::imread("./template.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
+    let source = cv::imgcodecs::imread("./examples/source2.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
+    let template = cv::imgcodecs::imread("./examples/up.png", cv::imgcodecs::IMREAD_GRAYSCALE)?;
 
     let mut res = cv::core::Mat::default();
 
@@ -15,7 +15,8 @@ fn main() -> Result<()> {
         &template,
         &mut res,
         cv::imgproc::TM_CCOEFF_NORMED,
-        &cv::core::no_array(),
+        &template,
+        // &cv::core::no_array(),
     )?;
 
     let mut min_val = 0.0f64;

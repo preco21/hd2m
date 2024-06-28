@@ -3,18 +3,7 @@ use anyhow::Result;
 use ndarray as nd;
 use opencv as cv;
 
-pub fn convert_image_to_mat_grayscale(image: &image::RgbaImage) -> Result<cv::core::Mat> {
-    let mat: cv::core::Mat = image.try_into_cv()?;
-    convert_mat_grayscale(&mat)
-}
-
-pub fn convert_mat_grayscale(mat: &cv::core::Mat) -> Result<cv::core::Mat> {
-    let mut res = cv::core::Mat::default();
-    cv::imgproc::cvt_color(&mat, &mut res, cv::imgproc::COLOR_RGBA2GRAY, 0)?;
-    Ok(res)
-}
-
-pub fn convert_tm_mat_to_array2(mat: &cv::core::Mat) -> Result<nd::Array2<f32>> {
+pub fn convert_mat_to_array2(mat: &cv::core::Mat) -> Result<nd::Array2<f32>> {
     let arr3: nd::Array3<f32> = mat.try_into_cv()?;
     let flatten = convert_array3_to_array2(&arr3);
     Ok(flatten)
