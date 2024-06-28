@@ -112,20 +112,20 @@ pub fn input_manager_subscription(shutdown: Shutdown) -> iced::Subscription<Even
                                                 // Direction::Right => send(&rdev::EventType::KeyPress(rdev::Key::KeyD)).await,
                                                 Direction::Up => {
                                                     // inputbot::KeybdKey::WKey.release();
-                                                    tokio::time::sleep(Duration::from_millis(150)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     // winput::send('W');
                                                     winput::press(Vk::W);
-                                                    tokio::time::sleep(Duration::from_millis(30)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     winput::release(Vk::W);
                                                     // inputbot::KeybdKey::WKey.press();
                                                     // inputbot::KeybdKey::WKey.release();
                                                 },
                                                 Direction::Down => {
                                                     // inputbot::KeybdKey::SKey.release();
-                                                    tokio::time::sleep(Duration::from_millis(150)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     // winput::send('S');
                                                     winput::press(Vk::S);
-                                                    tokio::time::sleep(Duration::from_millis(30)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     winput::release(Vk::S);
                                                     // inputbot::KeybdKey::SKey.press();
                                                     // inputbot::KeybdKey::SKey.release();
@@ -134,10 +134,10 @@ pub fn input_manager_subscription(shutdown: Shutdown) -> iced::Subscription<Even
                                                 },
                                                 Direction::Left => {
                                                     // inputbot::KeybdKey::AKey.release();
-                                                    tokio::time::sleep(Duration::from_millis(150)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     // inputbot::KeybdKey::AKey.press();
                                                     winput::press(Vk::A);
-                                                    tokio::time::sleep(Duration::from_millis(30)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     // winput::send('A');
                                                     winput::release(Vk::A);
                                                     // inputbot::KeybdKey::AKey.release();
@@ -145,10 +145,10 @@ pub fn input_manager_subscription(shutdown: Shutdown) -> iced::Subscription<Even
                                                 },
                                                 Direction::Right => {
                                                     // inputbot::KeybdKey::DKey.release();
-                                                    tokio::time::sleep(Duration::from_millis(150)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     // winput::send('D');
                                                     winput::press(Vk::D);
-                                                    tokio::time::sleep(Duration::from_millis(30)).await;
+                                                    tokio::time::sleep(Duration::from_millis(10)).await;
                                                     winput::release(Vk::D);
                                                     // inputbot::KeybdKey::DKey.press();
                                                     // inputbot::KeybdKey::DKey.release();
