@@ -96,10 +96,10 @@ impl Hd2mCvManager {
         let res_right = matching_template.right.match_template(target)?;
         let res_left = matching_template.left.match_template(target)?;
 
-        let arr_up = convert_mat_to_array2(&res_up)?;
-        let arr_down = convert_mat_to_array2(&res_down)?;
-        let arr_right = convert_mat_to_array2(&res_right)?;
-        let arr_left = convert_mat_to_array2(&res_left)?;
+        let arr_up = convert_mat_to_array2(&res_up.mat())?;
+        let arr_down = convert_mat_to_array2(&res_down.mat())?;
+        let arr_right = convert_mat_to_array2(&res_right.mat())?;
+        let arr_left = convert_mat_to_array2(&res_left.mat())?;
 
         let descriptors = find_direction_commands(
             &arr_up.view(),
