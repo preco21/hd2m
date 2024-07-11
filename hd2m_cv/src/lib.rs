@@ -12,3 +12,6 @@ pub use convert::*;
 
 mod manager;
 pub use manager::*;
+
+mod scale;
+pub use scale::*;
