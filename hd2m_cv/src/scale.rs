@@ -70,11 +70,11 @@ mod tests {
         assert_eq!(scale.variant_scale("medium"), Some(200));
         assert_eq!(scale.variant_scale("large"), Some(300));
 
-        assert_eq!(scale.variant_scale_x("small"), Some(200));
+        assert_eq!(scale.variant_scale_x("small"), Some(100));
         assert_eq!(scale.variant_scale_x("medium"), Some(200));
         assert_eq!(scale.variant_scale_x("large"), Some(300));
 
-        assert_eq!(scale.variant_scale_y("small"), Some(200));
+        assert_eq!(scale.variant_scale_y("small"), Some(100));
         assert_eq!(scale.variant_scale_y("medium"), Some(200));
         assert_eq!(scale.variant_scale_y("large"), Some(300));
     }
