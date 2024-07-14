@@ -3,28 +3,56 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone)]
 pub struct AutoScale {
     original_size: (usize, usize),
-    target_size: (usize, usize),
-    map: BTreeMap<String, usize>,
+    target_size: Option<(usize, usize)>,
+    variants: BTreeMap<String, (usize, usize)>,
 }
 
 impl AutoScale {
-    pub fn new(width: i32, height: i32, scale: f64) -> Self {
+    pub fn new(width: usize, height: usize) -> Self {
         Self {
-            width,
-            height,
-            scale,
+            original_size: (width, height),
+            target_size: None,
+            variants: BTreeMap::new(),
         }
     }
 
-    pub fn clone_with_target_size(&self) -> Self {
-        Self {
-            original_size: self.original_size,
-            target_size: self.target_size,
-            map: self.map.clone(),
-        }
+    pub fn clone_with_target_size(&self, width: usize, height: usize) -> Self {
+        let mut new = self.clone();
+        new.set_target_size(width, height);
+        new
     }
 
-    pub fn scale(&self, x: i32, y: i32) -> (i32, i32) {
-        (x + self.width, y + (self.height as f64 * self.scale) as i32)
+    pub fn set_target_size(&mut self, width: usize, height: usize) {
+        self.target_size = Some((width, height));
+    }
+
+    pub fn add_variant(&mut self, name: &str, width: usize, height: usize) {
+        self.variants.insert(name.to_string(), (width, height));
+    }
+
+    pub fn variant_scale(&self, variant: &str) -> Option<(usize, usize)> {
+        let &(width, height) = self.variants.get(variant)?;
+        let (target_width, target_height) = self.target_size.unwrap_or(self.original_size);
+        let scale_x = target_width as f64 / self.original_size.0 as f64;
+        let scale_y = target_height as f64 / self.original_size.1 as f64;
+        let box_scale = scale_x.min(scale_y);
+        Some((
+            (width as f64 * box_scale) as usize,
+            (height as f64 * box_scale) as usize,
+        ))
+    }
+
+    pub fn variant_scale_x(&self, variant: &str) -> Option<usize> {
+        let &(width, _) = self.variants.get(variant)?;
+        let (target_width, _) = self.target_size.unwrap_or(self.original_size);
+        let scale_x = target_width as f64 / self.original_size.0 as f64;
+        Some((width as f64 * scale_x) as usize)
+    }
+
+    pub fn variant_scale_y(&self, variant: &str) -> Option<usize> {
+        let &(_, height) = self.variants.get(variant)?;
+        let (_, target_height) = self.target_size.unwrap_or(self.original_size);
+        let scale_y = target_height as f64 / self.original_size.1 as f64;
+        Some((height as f64 * scale_y) as usize)
     }
 }
