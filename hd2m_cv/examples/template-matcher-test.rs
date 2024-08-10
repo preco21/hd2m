@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
     println!("Elapsed: {:?}", start.elapsed());
     cv::core::min_max_loc(
-        &res,
+        &res.mat(),
         Some(&mut min_val),
         Some(&mut max_val),
         Some(&mut min_loc),

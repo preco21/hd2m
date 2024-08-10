@@ -14,9 +14,16 @@ fn main() -> Result<()> {
     let start = std::time::Instant::now();
     let res = matcher.match_template(&source.try_into_cv()?)?;
 
-    let mut mat = cv::core::Mat::default();
-    let canny_edges: cv::core::Mat = dst_img.clone().try_into_cv()?;
-    cv::imgproc::canny(&canny_edges, &mut mat, 200.0, 15.0, 3, false)?;
+    let edges_input_mat: cv::core::Mat = dst_img.clone().try_into_cv()?;
+    let mut edges_output_mat = cv::core::Mat::default();
+    cv::imgproc::canny(
+        &edges_input_mat,
+        &mut edges_output_mat,
+        200.0,
+        15.0,
+        3,
+        false,
+    )?;
 
     let mut min_val = 0.0f64;
     let mut max_val = 0.0f64;
@@ -48,7 +55,7 @@ fn main() -> Result<()> {
         0,
     )?;
 
-    GrayImage::try_from_cv(&canny_edges)?.save("./result-edges.png")?;
+    GrayImage::try_from_cv(&edges_output_mat)?.save("./result-edges.png")?;
 
     GrayImage::try_from_cv(&dst_img)?.save("./result.png")?;
 
