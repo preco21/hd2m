@@ -1,8 +1,8 @@
 mod cv_convert;
 pub use cv_convert::*;
 
-mod template;
-pub use template::*;
+mod matcher;
+pub use matcher::*;
 
 mod search;
 pub use search::*;

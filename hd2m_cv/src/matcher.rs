@@ -1,15 +1,20 @@
 use anyhow::Result;
+use image::GrayImage;
 use opencv::{self as cv};
+
+use crate::TryFromCv;
 
 #[derive(Debug, Clone)]
 pub struct TemplateMatcher {
-    original_template: cv::core::Mat,
+    baked_template: cv::core::Mat,
 }
 
 impl TemplateMatcher {
     pub fn new(template: &cv::core::Mat) -> Result<Self> {
+        GrayImage::try_from_cv(&pre_process_mat(template)?)?.save("./canny-edges.png")?;
+
         Ok(Self {
-            original_template: convert_mat_grayscale(template)?,
+            baked_template: pre_process_mat(template)?,
         })
     }
 
@@ -26,17 +31,16 @@ impl TemplateMatcher {
     }
 
     pub fn mat(&self) -> &cv::core::Mat {
-        &self.original_template
+        &self.baked_template
     }
 
-    pub fn match_template(&self, source: &cv::core::Mat) -> Result<TemplateMatcherResult> {
-        let grayed = convert_mat_grayscale(source)?;
+    pub fn match_template(&self, input: &cv::core::Mat) -> Result<TemplateMatcherResult> {
         let mut res = cv::core::Mat::default();
         cv::imgproc::match_template(
-            &grayed,
-            &self.original_template,
+            &pre_process_mat(input)?,
+            &self.baked_template,
             &mut res,
-            cv::imgproc::TM_CCOEFF_NORMED,
+            cv::imgproc::TM_CCORR_NORMED,
             // INFO: We don't use mask here because somehow without mask, the result is more accurate
             &cv::core::no_array(),
         )?;
@@ -46,21 +50,22 @@ impl TemplateMatcher {
     pub fn resize_template(&mut self, width: i32, height: i32) -> Result<()> {
         let mut res = cv::core::Mat::default();
         cv::imgproc::resize(
-            &self.original_template,
+            // FIXME: should we use the original template or the pre-processed one?
+            &self.baked_template,
             &mut res,
             cv::core::Size::new(width, height),
             0.0,
             0.0,
             cv::imgproc::INTER_NEAREST_EXACT,
         )?;
-        self.original_template = res;
+        self.baked_template = res;
         Ok(())
     }
 
     pub fn resize_template_scale(&mut self, scale: f64) -> Result<()> {
         let mut res = cv::core::Mat::default();
         cv::imgproc::resize(
-            &self.original_template,
+            &self.baked_template,
             &mut res,
             Default::default(),
             scale,
@@ -70,7 +75,7 @@ impl TemplateMatcher {
             // See also: https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html#gga5bb5a1fea74ea38e1a5445ca803ff121aa5521d8e080972c762467c45f3b70e6c
             cv::imgproc::INTER_NEAREST_EXACT,
         )?;
-        self.original_template = res;
+        self.baked_template = res;
         Ok(())
     }
 }
@@ -79,6 +84,25 @@ fn convert_mat_grayscale(mat: &cv::core::Mat) -> Result<cv::core::Mat> {
     let mut res = cv::core::Mat::default();
     cv::imgproc::cvt_color(&mat, &mut res, cv::imgproc::COLOR_RGBA2GRAY, 0)?;
     Ok(res)
+}
+
+fn pre_process_mat(mat: &cv::core::Mat) -> Result<cv::core::Mat> {
+    let grayed = convert_mat_grayscale(mat)?;
+
+    let mut smoothed = cv::core::Mat::default();
+    cv::imgproc::gaussian_blur(
+        &grayed,
+        &mut smoothed,
+        cv::core::Size::new(3, 3),
+        0.0,
+        0.0,
+        0,
+    )?;
+
+    let mut canny_edges = cv::core::Mat::default();
+    cv::imgproc::canny(&smoothed, &mut canny_edges, 150.0, 300.0, 3, true)?;
+
+    Ok(canny_edges)
 }
 
 #[derive(Debug, Clone)]
