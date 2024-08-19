@@ -4,10 +4,10 @@ use image::{DynamicImage, GrayImage, RgbaImage};
 use opencv as cv;
 
 fn main() -> Result<()> {
-    let img_tmp = image::open("./examples/temp.png")?.to_rgba8();
+    let img_tmp = image::open("./examples/up.png")?.to_rgba8();
     let matcher = hd2m_cv::TemplateMatcher::new(&img_tmp.try_into_cv()?)?;
 
-    let source = image::open("./examples/source.png")?;
+    let source = image::open("./examples/source2.png")?;
     let dst_img = source.clone().to_luma8();
     let source = source.to_rgba8();
 
@@ -15,14 +15,25 @@ fn main() -> Result<()> {
     let res = matcher.match_template(&source.try_into_cv()?)?;
 
     let edges_input_mat: cv::core::Mat = dst_img.clone().try_into_cv()?;
+
+    let mut edges_input_blur_mat = cv::core::Mat::default();
+    cv::imgproc::gaussian_blur(
+        &edges_input_mat,
+        &mut edges_input_blur_mat,
+        cv::core::Size::new(1, 1),
+        0.0,
+        0.0,
+        0,
+    )?;
+
     let mut edges_output_mat = cv::core::Mat::default();
     cv::imgproc::canny(
-        &edges_input_mat,
+        &edges_input_blur_mat,
         &mut edges_output_mat,
-        200.0,
-        15.0,
+        150.0,
+        300.0,
         3,
-        false,
+        true,
     )?;
 
     let mut min_val = 0.0f64;
@@ -55,7 +66,8 @@ fn main() -> Result<()> {
         0,
     )?;
 
-    GrayImage::try_from_cv(&edges_output_mat)?.save("./result-edges.png")?;
+    GrayImage::try_from_cv(&edges_input_blur_mat)?.save("./result-canny-blur.png")?;
+    GrayImage::try_from_cv(&edges_input_mat)?.save("./result-canny-blur-original.png")?;
 
     GrayImage::try_from_cv(&dst_img)?.save("./result.png")?;
 

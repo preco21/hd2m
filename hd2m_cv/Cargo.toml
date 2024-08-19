@@ -17,4 +17,5 @@ ndarray = { version = "0.15.6", features = ["rayon"] }
 opencv = { version = "0.92.0", default-features = false, features = [
     "imgproc",
 ] }
+powerboxesrs = "0.2.3"
 rayon = "1.9.0"

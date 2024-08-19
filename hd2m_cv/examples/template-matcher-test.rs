@@ -7,7 +7,7 @@ fn main() -> Result<()> {
     let img_tmp = image::open("./examples/temp.png")?.to_rgba8();
     let matcher = hd2m_cv::TemplateMatcher::new(&img_tmp.try_into_cv()?)?;
 
-    let source = image::open("./examples/source.png")?;
+    let source = image::open("./examples/source2.png")?;
     let dst_img = source.clone().to_luma8();
     let source = source.to_rgba8();
 
@@ -35,14 +35,6 @@ fn main() -> Result<()> {
     );
 
     let mut dst_img = dst_img.try_into_cv()?;
-    cv::imgproc::rectangle(
-        &mut dst_img,
-        cv::core::Rect::from_points(min_loc, max_loc),
-        cv::core::VecN([255., 255., 0., 0.]),
-        2,
-        cv::imgproc::LINE_8,
-        0,
-    )?;
 
     GrayImage::try_from_cv(&dst_img)?.save("./result.png")?;
 

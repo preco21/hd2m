@@ -9,13 +9,13 @@ fn main() -> Result<()> {
         template_left_image: image::open("./examples/left.png")?.to_rgba8(),
         base_screen_size: (2560, 1440),
         search_options: Some(hd2m_cv::Hd2mCvSearchOptions {
-            threshold: Some(0.9),
+            threshold: Some(0.6),
             ..Default::default()
         }),
     })?;
 
     let start = std::time::Instant::now();
-    let source_img = image::open("./examples/source2.png")?;
+    let source_img = image::open("./examples/source.png")?;
     manager.use_screen_size(source_img.width() as usize, source_img.height() as usize)?;
 
     let res = manager.run_match_rgba(&source_img.to_rgba8())?;
