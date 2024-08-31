@@ -5,5 +5,5 @@ members = ["hd2m_cv", "hd2m_gui"]
 [workspace.package]
 version = "0.1.0"
 authors = ["Preco Plusb <plusb21@gmail.com>"]
-repository = "https://github.com/preco21/nxzr"
+repository = "https://github.com/preco21/hd2m"
 license = "UNLICENSED"
